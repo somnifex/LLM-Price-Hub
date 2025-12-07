@@ -16,7 +16,13 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="LLM Price Hub", version="0.0.1")
 
 # CORS - restrict in production
-allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "")
+if not allowed_origins_str:
+    # Default to localhost for development
+    allowed_origins = ["http://localhost:3000", "http://localhost:5173", "http://localhost:8080"]
+else:
+    allowed_origins = allowed_origins_str.split(",")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,

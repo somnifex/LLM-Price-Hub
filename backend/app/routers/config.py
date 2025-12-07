@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthCredential
 from sqlmodel import Session, select, or_
 from app.database import get_session
 from app.models import CurrencyRate, Provider, User, ProviderStatus
+from app.utils.jwt import decode_jwt_token
 from typing import Optional
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -17,20 +18,17 @@ async def get_current_user_optional(
     if not credentials:
         return None
     
-    try:
-        from jose import jwt, JWTError
-        from app.auth import SECRET_KEY, ALGORITHM
-        
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            return None
-        
-        statement = select(User).where(User.email == email)
-        user = session.exec(statement).first()
-        return user
-    except (JWTError, Exception):
+    payload = decode_jwt_token(credentials.credentials)
+    if not payload:
         return None
+    
+    email: str = payload.get("sub")
+    if email is None:
+        return None
+    
+    statement = select(User).where(User.email == email)
+    user = session.exec(statement).first()
+    return user
 
 @router.get("/rates")
 async def get_rates(session: Session = Depends(get_session)):

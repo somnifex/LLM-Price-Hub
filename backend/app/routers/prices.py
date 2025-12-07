@@ -149,10 +149,14 @@ async def submit_price(
         if file_ext not in allowed_extensions:
             raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(allowed_extensions)}")
         
-        # Check file size (limit to 5MB)
-        file.file.seek(0, 2)  # Seek to end
-        file_size = file.file.tell()
-        file.file.seek(0)  # Reset to beginning
+        # Check file size using file.size if available, otherwise seek
+        file_size = 0
+        if hasattr(file, 'size'):
+            file_size = file.size
+        else:
+            file.file.seek(0, 2)  # Seek to end
+            file_size = file.file.tell()
+            file.file.seek(0)  # Reset to beginning
         
         if file_size > 5 * 1024 * 1024:  # 5MB
             raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")

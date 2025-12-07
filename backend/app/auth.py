@@ -10,7 +10,13 @@ from app.models import User
 import os
 
 # Secret key settings
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-it-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY", "")
+if not SECRET_KEY:
+    if os.getenv("ENV") == "production":
+        raise ValueError("SECRET_KEY environment variable must be set in production")
+    # Use a default for development only
+    SECRET_KEY = "dev-secret-key-change-it-in-production"
+    
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
