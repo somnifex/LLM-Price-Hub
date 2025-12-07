@@ -14,8 +14,9 @@ const loading = ref(false)
 const handleRegister = async () => {
   loading.value = true
   try {
-    const res = await api.post('/auth/register', null, { 
-        params: { email: email.value, password: password.value } 
+    const res = await api.post('/auth/register', { 
+        email: email.value, 
+        password: password.value 
     })
     if (res.data?.email_verified === false) {
       ElMessage.success(t('auth.verification_sent'))
@@ -24,7 +25,11 @@ const handleRegister = async () => {
     }
     router.push('/login')
   } catch (e: any) {
-    ElMessage.error(e.response?.data?.detail || t('auth.register_failed'))
+    let msg = e.response?.data?.detail
+    if (Array.isArray(msg)) {
+      msg = msg.map((err: any) => err.msg).join(', ')
+    }
+    ElMessage.error(msg || t('auth.register_failed'))
   } finally {
     loading.value = false
   }
@@ -46,7 +51,7 @@ const handleRegister = async () => {
           {{ t('auth.register') }}
         </el-button>
         <div class="text-center mt-4">
-          <router-link to="/login" class="text-blue-500 text-sm">{{ t('auth.back_to_login') }}</router-link>
+          <router-link to="/login" class="text-primary-600 text-sm hover:text-primary-700">{{ t('auth.back_to_login') }}</router-link>
         </div>
       </el-form>
     </el-card>

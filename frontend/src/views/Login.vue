@@ -24,7 +24,7 @@ const resendVerification = async () => {
   }
   resendLoading.value = true
   try {
-    await api.post('/auth/resend-verification', null, { params: { email: email.value } })
+    await api.post('/auth/resend-verification', { email: email.value })
     ElMessage.success(t('auth.verification_sent'))
   } catch (e) {
     ElMessage.error(t('auth.register_failed'))
@@ -82,7 +82,7 @@ const handleLogin = async () => {
           </el-button>
         </div>
         <div class="text-center mt-4">
-          <router-link to="/register" class="text-blue-500 text-sm">{{ t('auth.create_account') }}</router-link>
+          <router-link to="/register" class="text-primary-600 text-sm hover:text-primary-700">{{ t('auth.create_account') }}</router-link>
         </div>
       </el-form>
     </el-card>

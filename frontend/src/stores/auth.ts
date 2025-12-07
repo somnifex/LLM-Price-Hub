@@ -37,7 +37,10 @@ export const useAuthStore = defineStore('auth', () => {
             setUser({ email: payload.sub, role: payload.role })
             return { ok: true }
         } catch (e: any) {
-            const detail = e?.response?.data?.detail
+            let detail = e?.response?.data?.detail
+            if (Array.isArray(detail)) {
+                detail = detail.map((err: any) => err.msg).join(', ')
+            }
             const err = new Error(detail || 'LOGIN_FAILED') as any
             err.code = detail || 'LOGIN_FAILED'
             throw err

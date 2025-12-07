@@ -26,16 +26,21 @@ app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(user_keys.router)
 
+
 @app.on_event("startup")
 def on_startup():
     init_db()
     from app.services.scheduler import scheduler
+
     scheduler.start()
+
 
 @app.on_event("shutdown")
 def on_shutdown():
     from app.services.scheduler import scheduler
+
     scheduler.shutdown()
+
 
 @app.get("/")
 def read_root():

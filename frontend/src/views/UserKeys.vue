@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { CopyDocument, View, Hide } from '@element-plus/icons-vue'
 import api from '@/api'
 import { encrypt, decrypt, generateSalt, verifyPassword } from '@/utils/e2ee'
+// @ts-ignore
 import QRCode from 'qrcode'
 
 const { t } = useI18n()
@@ -163,7 +164,7 @@ async function confirmTotpSetup() {
   }
   totpLoading.value = true
   try {
-    const res = await api.post('/auth/totp/activate', null, { params: { code: totpCode.value } })
+    const res = await api.post('/auth/totp/activate', { code: totpCode.value })
     totpEnabled.value = true
     totpBackupCodes.value = res.data.backup_codes || []
     totpCode.value = ''
@@ -183,7 +184,7 @@ async function disableTotp() {
   }
   totpLoading.value = true
   try {
-    await api.post('/auth/totp/disable', null, { params: { code: totpCode.value } })
+    await api.post('/auth/totp/disable', { code: totpCode.value })
     totpEnabled.value = false
     totpSecret.value = ''
     totpUrl.value = ''
@@ -295,7 +296,11 @@ async function addAPIKey() {
     
     ElMessage.success(t('keys.key_added'))
   } catch (error: any) {
-    ElMessage.error(error.response?.data?.detail || t('keys.failed_to_add_key'))
+    let msg = error.response?.data?.detail
+    if (Array.isArray(msg)) {
+      msg = msg.map((err: any) => err.msg).join(', ')
+    }
+    ElMessage.error(msg || t('keys.failed_to_add_key'))
   } finally {
     loading.value = false
   }
@@ -389,8 +394,12 @@ async function deleteProvider(providerId: number) {
     await loadProviders()
     ElMessage.success(t('keys.provider_deleted'))
   } catch (error: any) {
-    if (error.response?.data?.detail) {
-      ElMessage.error(error.response.data.detail)
+    let msg = error.response?.data?.detail
+    if (msg) {
+      if (Array.isArray(msg)) {
+        msg = msg.map((err: any) => err.msg).join(', ')
+      }
+      ElMessage.error(msg)
     }
   }
 }

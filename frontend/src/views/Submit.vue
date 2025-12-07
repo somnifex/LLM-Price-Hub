@@ -149,9 +149,17 @@ const submit = async () => {
   } catch (e: any) {
     if (e.response?.status === 202) {
       // Model request submitted
-      ElMessage.warning(e.response.data.detail)
+      let msg = e.response.data.detail
+      if (Array.isArray(msg)) {
+        msg = msg.map((err: any) => err.msg).join(', ')
+      }
+      ElMessage.warning(msg)
     } else {
-      ElMessage.error(e.response?.data?.detail || t('submit.failed'))
+      let msg = e.response?.data?.detail
+      if (Array.isArray(msg)) {
+        msg = msg.map((err: any) => err.msg).join(', ')
+      }
+      ElMessage.error(msg || t('submit.failed'))
     }
   } finally {
     loading.value = false

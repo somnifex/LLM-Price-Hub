@@ -34,7 +34,7 @@ const normalized = computed(() => {
           <span class="font-mono">{{ row.price_in.toFixed(6) }}</span>
         </div>
         <div class="h-3 mt-2 bg-white border rounded overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-blue-500 to-indigo-600" :style="{ width: row.barWidth + '%' }"></div>
+          <div class="h-full bg-gradient-to-r from-primary-500 to-primary-600" :style="{ width: row.barWidth + '%' }"></div>
         </div>
         <div class="flex justify-between text-xs text-gray-500 mt-1">
           <span>{{ t('table.uptime') }} {{ row.uptime }}%</span>

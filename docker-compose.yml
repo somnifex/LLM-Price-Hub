@@ -21,12 +21,12 @@ services:
     build: ./backend
     container_name: llm_api
     restart: always
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend/app:/app/app       # 代码热重载
       - ./backend/static:/app/static # 图片持久化
     environment:
-      DATABASE_URL: mysql+mysqlconnector://root:rootpassword@db/llm_price_hub
+      DATABASE_URL: mysql+pymysql://root:rootpassword@db/llm_price_hub
       ADMIN_TOKEN: "secret-admin-key-123" # 简单鉴权密钥
     ports:
       - "8000:8000"

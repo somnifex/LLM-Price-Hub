@@ -3,23 +3,27 @@ from typing import Optional
 from sqlmodel import Field, SQLModel, Relationship
 from enum import Enum
 
+
 class PriceStatus(str, Enum):
     pending = "pending"
     active = "active"
     rejected = "rejected"
     expired = "expired"
 
+
 class ProviderStatus(str, Enum):
-    private = "private"      # Only visible to owner
-    pending = "pending"      # Submitted for public review
-    approved = "approved"    # Publicly visible
-    rejected = "rejected"    # Review rejected
+    private = "private"  # Only visible to owner
+    pending = "pending"  # Submitted for public review
+    approved = "approved"  # Publicly visible
+    rejected = "rejected"  # Review rejected
+
 
 class CurrencyRate(SQLModel, table=True):
     __tablename__ = "currency_rates"
     code: str = Field(primary_key=True, max_length=10)
     rate_to_usd: float = Field(default=1.0)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class Provider(SQLModel, table=True):
     __tablename__ = "providers"
@@ -28,16 +32,16 @@ class Provider(SQLModel, table=True):
     website: Optional[str] = Field(default=None, max_length=255)
     is_official: bool = Field(default=False)
     owner_id: Optional[int] = Field(default=None, foreign_key="users.id")
-    
+
     status: ProviderStatus = Field(default=ProviderStatus.private)
-    
+
     openai_base_url: Optional[str] = Field(default=None, max_length=500)
     gemini_base_url: Optional[str] = Field(default=None, max_length=500)
     claude_base_url: Optional[str] = Field(default=None, max_length=500)
-    
+
     proof_type: Optional[str] = Field(default=None, max_length=20)
     proof_content: Optional[str] = Field(default=None, max_length=2000)
-    
+
     avg_score: float = Field(default=0.0)
     uptime_rate: float = Field(default=100.0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -45,6 +49,7 @@ class Provider(SQLModel, table=True):
     prices: list["ModelPrice"] = Relationship(back_populates="provider")
     reviews: list["Review"] = Relationship(back_populates="provider")
     owner: Optional["User"] = Relationship(back_populates="private_providers")
+
 
 class StandardModel(SQLModel, table=True):
     __tablename__ = "standard_models"
@@ -54,8 +59,10 @@ class StandardModel(SQLModel, table=True):
 
     prices: list["ModelPrice"] = Relationship(back_populates="standard_model")
 
+
 class StandardModelRequest(SQLModel, table=True):
     """User requests for new standard model names to be added."""
+
     __tablename__ = "standard_model_requests"
     id: Optional[int] = Field(default=None, primary_key=True)
     requested_name: str = Field(max_length=100)
@@ -64,8 +71,9 @@ class StandardModelRequest(SQLModel, table=True):
     status: str = Field(default="pending")  # pending/approved/rejected
     admin_notes: Optional[str] = Field(default=None, max_length=500)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     requester: Optional["User"] = Relationship(back_populates="model_requests")
+
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -82,12 +90,14 @@ class User(SQLModel, table=True):
     totp_secret: Optional[str] = Field(default=None, max_length=64)
     totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
     totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
-    
+
     prices: list["ModelPrice"] = Relationship(back_populates="submitter")
     private_providers: list["Provider"] = Relationship(back_populates="owner")
     api_keys: list["UserAPIKey"] = Relationship(back_populates="user")
     settings: Optional["UserSettings"] = Relationship(back_populates="user")
-    model_requests: list["StandardModelRequest"] = Relationship(back_populates="requester")
+    model_requests: list["StandardModelRequest"] = Relationship(
+        back_populates="requester"
+    )
 
 
 class EmailVerificationToken(SQLModel, table=True):
@@ -100,33 +110,39 @@ class EmailVerificationToken(SQLModel, table=True):
 
     user: Optional[User] = Relationship()
 
+
 class SystemSetting(SQLModel, table=True):
     __tablename__ = "system_settings"
     key: str = Field(primary_key=True, max_length=50)
     value: str = Field(max_length=255)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class ModelPrice(SQLModel, table=True):
     __tablename__ = "model_prices"
     id: Optional[int] = Field(default=None, primary_key=True)
-    
+
     provider_id: int = Field(foreign_key="providers.id")
     standard_model_id: int = Field(foreign_key="standard_models.id")
     submitter_id: Optional[int] = Field(default=None, foreign_key="users.id")
-    
+
     # Provider's custom model name (may differ from standard name)
     provider_model_name: Optional[str] = Field(default=None, max_length=100)
     original_model_name: Optional[str] = Field(default=None, max_length=100)
-    
+
     currency: str = Field(default="USD", max_length=10)
     input_price: float
     output_price: float
-    
+
     # Flexible proof (image, text, or URL)
-    proof_type: Optional[str] = Field(default=None, max_length=20)  # 'image', 'text', 'url'
+    proof_type: Optional[str] = Field(
+        default=None, max_length=20
+    )  # 'image', 'text', 'url'
     proof_content: Optional[str] = Field(default=None, max_length=2000)
-    proof_img_path: Optional[str] = Field(default=None, max_length=255)  # Legacy, keep for compatibility
-    
+    proof_img_path: Optional[str] = Field(
+        default=None, max_length=255
+    )  # Legacy, keep for compatibility
+
     status: PriceStatus = Field(default=PriceStatus.pending)
     verified_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -134,6 +150,7 @@ class ModelPrice(SQLModel, table=True):
     provider: Optional[Provider] = Relationship(back_populates="prices")
     standard_model: Optional[StandardModel] = Relationship(back_populates="prices")
     submitter: Optional[User] = Relationship(back_populates="prices")
+
 
 class Review(SQLModel, table=True):
     __tablename__ = "reviews"
@@ -145,14 +162,16 @@ class Review(SQLModel, table=True):
 
     provider: Optional[Provider] = Relationship(back_populates="reviews")
 
+
 class UserSettings(SQLModel, table=True):
     __tablename__ = "user_settings"
     user_id: int = Field(primary_key=True, foreign_key="users.id")
     e2ee_enabled: bool = Field(default=False)
     e2ee_salt: Optional[str] = Field(default=None, max_length=255)
     e2ee_verification: Optional[str] = Field(default=None, max_length=500)
-    
+
     user: Optional[User] = Relationship(back_populates="settings")
+
 
 class UserAPIKey(SQLModel, table=True):
     __tablename__ = "user_api_keys"
@@ -163,7 +182,6 @@ class UserAPIKey(SQLModel, table=True):
     is_encrypted: bool = Field(default=False)
     note: Optional[str] = Field(default=None, max_length=255)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    
+
     user: Optional[User] = Relationship(back_populates="api_keys")
     provider: Optional[Provider] = Relationship()
-

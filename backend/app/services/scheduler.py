@@ -10,42 +10,44 @@ logger = logging.getLogger("scheduler")
 
 scheduler = AsyncIOScheduler()
 
+
 def get_db_session():
     return Session(engine)
+
 
 def update_exchange_rates():
     """Fetch rates from public API and update DB."""
     try:
         url = "https://api.exchangerate-api.com/v4/latest/USD"
         api_key = ""
-        
+
         with get_db_session() as session:
             settings = session.exec(select(SystemSetting)).all()
             settings_dict = {s.key: s.value for s in settings}
-            
+
             curr_url = settings_dict.get("exchange_rate_url")
             if curr_url:
                 url = curr_url
-            
+
             curr_key = settings_dict.get("exchange_rate_key")
             if curr_key:
                 api_key = curr_key
-        
+
         # Replace placeholder with API key if present
         if "{KEY}" in url and api_key:
             url = url.replace("{KEY}", api_key)
-            
+
         with httpx.Client() as client:
             resp = client.get(url)
             if resp.status_code != 200:
                 logger.error(f"Exchange rate API returned {resp.status_code}")
                 return
-                
+
             data = resp.json()
             # Support standard format (rates or conversion_rates)
             rates = data.get("rates") or data.get("conversion_rates") or {}
             base = data.get("base") or data.get("base_code") or "USD"
-            
+
             # Normalize to USD if base is not USD
             usd_rate = rates.get("USD")
             if base != "USD" and usd_rate:
@@ -55,11 +57,12 @@ def update_exchange_rates():
                         new_rates[k] = v / usd_rate
                 rates = new_rates
                 rates["USD"] = 1.0
-            
+
         with get_db_session() as session:
             for code, rate in rates.items():
-                if len(code) > 10: continue
-                
+                if len(code) > 10:
+                    continue
+
                 # Upsert logic
                 existing = session.get(CurrencyRate, code)
                 if existing:
@@ -74,27 +77,34 @@ def update_exchange_rates():
     except Exception as e:
         logger.error(f"Failed to update rates: {e}")
 
+
 def reschedule_exchange_job():
     """Reads interval from DB and reschedules the job."""
     try:
-        interval = 240 # Default 4 hours (in minutes)
+        interval = 240  # Default 4 hours (in minutes)
         with get_db_session() as session:
             s = session.get(SystemSetting, "exchange_rate_interval_minutes")
             if s and s.value.isdigit():
                 interval = int(s.value)
-        
+
         # Ensure minimum interval to avoid spam
-        if interval < 5: interval = 5
-        
+        if interval < 5:
+            interval = 5
+
         try:
-            scheduler.reschedule_job('exchange_rates', trigger='interval', minutes=interval)
+            scheduler.reschedule_job(
+                "exchange_rates", trigger="interval", minutes=interval
+            )
             logger.info(f"Rescheduled exchange rate job to every {interval} minutes")
         except:
-            scheduler.add_job(update_exchange_rates, 'interval', minutes=interval, id='exchange_rates')
+            scheduler.add_job(
+                update_exchange_rates, "interval", minutes=interval, id="exchange_rates"
+            )
             logger.info(f"Added exchange rate job every {interval} minutes")
-            
+
     except Exception as e:
         logger.error(f"Failed to reschedule job: {e}")
+
 
 def expire_old_prices():
     """Expire prices verified more than 7 days ago."""
@@ -103,8 +113,7 @@ def expire_old_prices():
             # Logic: active and verified_at < 7 days ago
             cutoff = datetime.utcnow() - timedelta(days=7)
             statement = select(ModelPrice).where(
-                ModelPrice.status == PriceStatus.active,
-                ModelPrice.verified_at < cutoff
+                ModelPrice.status == PriceStatus.active, ModelPrice.verified_at < cutoff
             )
             results = session.exec(statement).all()
             for price in results:
@@ -115,6 +124,7 @@ def expire_old_prices():
     except Exception as e:
         logger.error(f"Failed to expire prices: {e}")
 
+
 def check_one_provider(provider_id: int, url: str):
     """Check a single provider and update stats. (To be run potentially in parallel or sequential)"""
     # Simple check
@@ -122,14 +132,14 @@ def check_one_provider(provider_id: int, url: str):
     try:
         if not url.startswith("http"):
             url = f"https://{url}"
-        
+
         with httpx.Client(timeout=5.0) as client:
             resp = client.get(url)
             if resp.status_code < 400:
                 success = True
     except:
         success = False
-        
+
     with get_db_session() as session:
         provider = session.get(Provider, provider_id)
         if provider:
@@ -139,6 +149,7 @@ def check_one_provider(provider_id: int, url: str):
             provider.uptime_rate = (provider.uptime_rate * 0.9) + (current_val * 0.1)
             session.add(provider)
             session.commit()
+
 
 def check_uptime():
     """Iterate all providers and check uptime."""
@@ -152,7 +163,8 @@ def check_uptime():
     except Exception as e:
         logger.error(f"Failed provider uptime check: {e}")
 
+
 # Schedule Jobs
-scheduler.add_job(update_exchange_rates, 'interval', hours=4, id='exchange_rates')
-scheduler.add_job(expire_old_prices, 'cron', hour=0) # Daily
-scheduler.add_job(check_uptime, 'interval', minutes=30)
+scheduler.add_job(update_exchange_rates, "interval", hours=4, id="exchange_rates")
+scheduler.add_job(expire_old_prices, "cron", hour=0)  # Daily
+scheduler.add_job(check_uptime, "interval", minutes=30)

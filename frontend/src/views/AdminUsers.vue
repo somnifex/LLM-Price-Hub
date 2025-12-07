@@ -24,7 +24,7 @@ const fetchUsers = async () => {
 
 const updateUserRole = async (userId: number, role: string) => {
     try {
-        await api.put(`/admin/users/${userId}/role?role=${role}`)
+        await api.put(`/admin/users/${userId}/role`, { role })
         ElMessage.success(t('admin.role_updated'))
         fetchUsers()
     } catch (e) {

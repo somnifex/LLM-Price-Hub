@@ -146,8 +146,8 @@ onMounted(() => {
             <el-table-column :label="t('table.proof')">
               <template #default="{ row }">
                 <span v-if="row.proof_type === 'text'" class="text-sm">{{ (row.proof_content || '').substring(0, 50) }}...</span>
-                <a v-else-if="row.proof_type === 'url'" :href="row.proof_content" target="_blank" class="text-blue-500">{{ t('admin.link') }}</a>
-                <a v-else-if="row.proof_img_path" :href="'/' + row.proof_img_path" target="_blank" class="text-blue-500">{{ t('admin.image') }}</a>
+                <a v-else-if="row.proof_type === 'url'" :href="row.proof_content" target="_blank" class="text-primary-600 hover:text-primary-700">{{ t('admin.link') }}</a>
+                <a v-else-if="row.proof_img_path" :href="'/' + row.proof_img_path" target="_blank" class="text-primary-600 hover:text-primary-700">{{ t('admin.image') }}</a>
               </template>
             </el-table-column>
             <el-table-column :label="t('common.actions')" width="180">
@@ -175,7 +175,7 @@ onMounted(() => {
             <el-table-column prop="name" :label="t('admin.name')" />
             <el-table-column prop="website" :label="t('keys.website')">
               <template #default="{ row }">
-                <a v-if="row.website" :href="row.website" target="_blank" class="text-blue-500">{{ row.website }}</a>
+                <a v-if="row.website" :href="row.website" target="_blank" class="text-primary-600 hover:text-primary-700">{{ row.website }}</a>
                 <span v-else>-</span>
               </template>
             </el-table-column>
@@ -189,7 +189,7 @@ onMounted(() => {
             <el-table-column :label="t('table.proof')">
               <template #default="{ row }">
                 <span v-if="row.proof_type === 'text'">{{ (row.proof_content || '').substring(0, 50) }}...</span>
-                <a v-else-if="row.proof_type === 'url'" :href="row.proof_content" target="_blank" class="text-blue-500">{{ t('admin.link') }}</a>
+                <a v-else-if="row.proof_type === 'url'" :href="row.proof_content" target="_blank" class="text-primary-600 hover:text-primary-700">{{ t('admin.link') }}</a>
               </template>
             </el-table-column>
             <el-table-column prop="submitter_email" :label="t('admin.submitter')" />

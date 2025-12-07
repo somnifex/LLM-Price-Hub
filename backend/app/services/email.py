@@ -7,6 +7,7 @@ from app.models import SystemSetting
 
 logger = logging.getLogger("email")
 
+
 def _bool_val(value: str) -> bool:
     return str(value).lower() in {"1", "true", "yes", "on"}
 
