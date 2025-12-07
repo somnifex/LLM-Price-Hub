@@ -74,12 +74,31 @@ class User(SQLModel, table=True):
     password_hash: str = Field(max_length=255)
     role: str = Field(default="user")
     is_active: bool = Field(default=True)
+    email_verified: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    # TOTP 2FA
+    totp_enabled: bool = Field(default=False)
+    totp_secret: Optional[str] = Field(default=None, max_length=64)
+    totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
+    totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
     
     prices: list["ModelPrice"] = Relationship(back_populates="submitter")
     private_providers: list["Provider"] = Relationship(back_populates="owner")
     api_keys: list["UserAPIKey"] = Relationship(back_populates="user")
     settings: Optional["UserSettings"] = Relationship(back_populates="user")
     model_requests: list["StandardModelRequest"] = Relationship(back_populates="requester")
+
+
+class EmailVerificationToken(SQLModel, table=True):
+    __tablename__ = "email_verification_tokens"
+    token: str = Field(primary_key=True, max_length=64)
+    user_id: int = Field(foreign_key="users.id")
+    expires_at: datetime = Field()
+    used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    user: Optional[User] = Relationship()
 
 class SystemSetting(SQLModel, table=True):
     __tablename__ = "system_settings"

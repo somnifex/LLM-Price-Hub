@@ -248,7 +248,12 @@ async def update_settings(
     for key, value in settings.items():
         if key == "exchange_rate_interval_minutes":
             needs_reschedule = True
-            
+
+        if key == "home_display_mode":
+            allowed_modes = {"table", "cards", "chart"}
+            if str(value) not in allowed_modes:
+                raise HTTPException(status_code=400, detail="Invalid home_display_mode")
+
         setting = session.get(SystemSetting, key)
         if not setting:
             setting = SystemSetting(key=key, value=str(value))

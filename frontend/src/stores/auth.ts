@@ -21,16 +21,27 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('user', JSON.stringify(userData))
     }
 
-    async function login(email: string, password: string) {
+    async function login(email: string, password: string, totpCode?: string) {
         const formData = new FormData()
         formData.append('username', email)
         formData.append('password', password)
+        if (totpCode) {
+            formData.append('totp_code', totpCode)
+        }
 
-        const res = await api.post('/auth/token', formData)
-        setToken(res.data.access_token)
+        try {
+            const res = await api.post('/auth/token', formData)
+            setToken(res.data.access_token)
 
-        const payload = JSON.parse(atob(res.data.access_token.split('.')[1]))
-        setUser({ email: payload.sub, role: payload.role })
+            const payload = JSON.parse(atob(res.data.access_token.split('.')[1]))
+            setUser({ email: payload.sub, role: payload.role })
+            return { ok: true }
+        } catch (e: any) {
+            const detail = e?.response?.data?.detail
+            const err = new Error(detail || 'LOGIN_FAILED') as any
+            err.code = detail || 'LOGIN_FAILED'
+            throw err
+        }
     }
 
     function logout() {

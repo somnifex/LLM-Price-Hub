@@ -5,8 +5,20 @@ import { useI18n } from 'vue-i18n'
 import { CopyDocument, View, Hide } from '@element-plus/icons-vue'
 import api from '@/api'
 import { encrypt, decrypt, generateSalt, verifyPassword } from '@/utils/e2ee'
+import QRCode from 'qrcode'
 
 const { t } = useI18n()
+
+// TOTP State
+const totpEnabled = ref(false)
+const totpSecret = ref('')
+const totpUrl = ref('')
+const totpQr = ref('')
+const totpBackupCodes = ref<string[]>([])
+const totpCode = ref('')
+const showTotpDialog = ref(false)
+const showDisableTotp = ref(false)
+const totpLoading = ref(false)
 
 // E2EE State
 const e2eeEnabled = ref(false)
@@ -114,6 +126,75 @@ async function loadSettings() {
     e2eeVerification.value = res.data.e2ee_verification || ''
   } catch {
     // Silent fail - settings will use defaults
+  }
+}
+
+async function loadTotpStatus() {
+  try {
+    const res = await api.get('/auth/totp/status')
+    totpEnabled.value = res.data.enabled
+    totpBackupCodes.value = []
+  } catch {
+    totpEnabled.value = false
+  }
+}
+
+async function startTotpSetup() {
+  totpLoading.value = true
+  try {
+    const res = await api.post('/auth/totp/initiate')
+    totpSecret.value = res.data.secret
+    totpUrl.value = res.data.otpauth_url
+    totpQr.value = await QRCode.toDataURL(res.data.otpauth_url)
+    totpBackupCodes.value = []
+    totpCode.value = ''
+    showTotpDialog.value = true
+  } catch (error) {
+    ElMessage.error(t('keys.failed_to_load_totp'))
+  } finally {
+    totpLoading.value = false
+  }
+}
+
+async function confirmTotpSetup() {
+  if (!totpCode.value) {
+    ElMessage.error(t('keys.enter_totp_code'))
+    return
+  }
+  totpLoading.value = true
+  try {
+    const res = await api.post('/auth/totp/activate', null, { params: { code: totpCode.value } })
+    totpEnabled.value = true
+    totpBackupCodes.value = res.data.backup_codes || []
+    totpCode.value = ''
+    ElMessage.success(t('keys.totp_enabled'))
+  } catch (error) {
+    ElMessage.error(t('keys.invalid_totp'))
+  } finally {
+    totpLoading.value = false
+  }
+}
+
+async function disableTotp() {
+  if (!totpEnabled.value) return
+  if (!totpCode.value) {
+    ElMessage.error(t('keys.enter_totp_code'))
+    return
+  }
+  totpLoading.value = true
+  try {
+    await api.post('/auth/totp/disable', null, { params: { code: totpCode.value } })
+    totpEnabled.value = false
+    totpSecret.value = ''
+    totpUrl.value = ''
+    totpBackupCodes.value = []
+    showDisableTotp.value = false
+    totpCode.value = ''
+    ElMessage.success(t('keys.totp_disabled'))
+  } catch (error) {
+    ElMessage.error(t('keys.invalid_totp'))
+  } finally {
+    totpLoading.value = false
   }
 }
 
@@ -329,6 +410,7 @@ function getStatusTag(status: string) {
 }
 
 onMounted(async () => {
+  await loadTotpStatus()
   await loadSettings()
   await loadProviders()
   await loadAPIKeys()
@@ -338,6 +420,34 @@ onMounted(async () => {
 <template>
   <div class="container mx-auto p-6 max-w-6xl">
     <h1 class="text-3xl font-bold mb-6">{{ t('keys.title') }}</h1>
+
+    <!-- TOTP Section -->
+    <el-card class="mb-6">
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="text-xl font-semibold">{{ t('keys.totp_title') }}</span>
+          <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
+        </div>
+      </template>
+
+      <div v-if="!totpEnabled" class="space-y-3">
+        <p class="text-gray-600">{{ t('keys.totp_description') }}</p>
+        <el-button type="primary" :loading="totpLoading" @click="startTotpSetup">{{ t('keys.enable_totp') }}</el-button>
+      </div>
+
+      <div v-else class="space-y-3">
+        <el-alert type="success" :closable="false">{{ t('keys.totp_active') }}</el-alert>
+        <el-button type="danger" @click="totpCode = ''; showDisableTotp = true">{{ t('keys.disable_totp') }}</el-button>
+      </div>
+
+      <div v-if="totpBackupCodes.length" class="mt-4 bg-gray-50 p-3 rounded">
+        <p class="font-semibold mb-2">{{ t('keys.backup_codes') }}</p>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <code v-for="code in totpBackupCodes" :key="code" class="block bg-white border px-2 py-1 rounded text-center">{{ code }}</code>
+        </div>
+        <p class="text-xs text-gray-500 mt-2">{{ t('keys.backup_codes_hint') }}</p>
+      </div>
+    </el-card>
     
     <!-- E2EE Settings Section -->
     <el-card class="mb-6">
@@ -463,6 +573,52 @@ onMounted(async () => {
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- TOTP Setup Dialog -->
+    <el-dialog v-model="showTotpDialog" :title="t('keys.enable_totp')" width="520px">
+      <div class="space-y-3">
+        <p>{{ t('keys.totp_scan_hint') }}</p>
+        <el-alert type="info" :closable="false">
+          <div class="break-all">{{ totpUrl }}</div>
+        </el-alert>
+        <div v-if="totpQr" class="flex justify-center">
+          <img :src="totpQr" alt="TOTP QR" class="w-40 h-40" />
+        </div>
+        <el-form @submit.prevent="confirmTotpSetup">
+          <el-form-item :label="t('keys.totp_secret')">
+            <el-input v-model="totpSecret" readonly />
+          </el-form-item>
+          <el-form-item :label="t('keys.totp_code')">
+            <el-input v-model="totpCode" />
+          </el-form-item>
+        </el-form>
+        <el-alert type="warning" :closable="false">{{ t('keys.backup_code_notice') }}</el-alert>
+        <div v-if="totpBackupCodes.length" class="bg-gray-50 border rounded p-3 space-y-2">
+          <div class="text-sm font-semibold">{{ t('keys.backup_codes') }}</div>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <code v-for="code in totpBackupCodes" :key="code" class="bg-white border rounded px-2 py-1 block text-center font-mono text-sm">{{ code }}</code>
+          </div>
+          <div class="text-xs text-gray-500">{{ t('keys.backup_codes_hint') }}</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showTotpDialog = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="totpLoading" @click="confirmTotpSetup">{{ totpBackupCodes.length ? t('common.confirm') : t('keys.enable_totp') }}</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Disable TOTP Dialog -->
+    <el-dialog v-model="showDisableTotp" :title="t('keys.disable_totp')" width="420px">
+      <el-form @submit.prevent="disableTotp">
+        <el-form-item :label="t('keys.totp_code')">
+          <el-input v-model="totpCode" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showDisableTotp = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="danger" :loading="totpLoading" @click="disableTotp">{{ t('common.confirm') }}</el-button>
+      </template>
+    </el-dialog>
     
     <!-- Password Prompt Dialog -->
     <el-dialog v-model="showPasswordPrompt" :title="t('keys.enter_password')" :close-on-click-modal="false">

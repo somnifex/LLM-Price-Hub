@@ -14,10 +14,14 @@ const loading = ref(false)
 const handleRegister = async () => {
   loading.value = true
   try {
-    await api.post('/auth/register', null, { 
+    const res = await api.post('/auth/register', null, { 
         params: { email: email.value, password: password.value } 
     })
-    ElMessage.success(t('auth.register_success'))
+    if (res.data?.email_verified === false) {
+      ElMessage.success(t('auth.verification_sent'))
+    } else {
+      ElMessage.success(t('auth.register_success'))
+    }
     router.push('/login')
   } catch (e: any) {
     ElMessage.error(e.response?.data?.detail || t('auth.register_failed'))

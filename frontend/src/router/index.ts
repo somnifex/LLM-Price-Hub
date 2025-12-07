@@ -9,6 +9,7 @@ import AdminUsers from '@/views/AdminUsers.vue'
 import AdminSettings from '@/views/AdminSettings.vue'
 import AdminContent from '@/views/AdminContent.vue'
 import UserKeys from '@/views/UserKeys.vue'
+import VerifyEmail from '@/views/VerifyEmail.vue'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -16,6 +17,7 @@ const router = createRouter({
         { path: '/', name: 'Home', component: Home },
         { path: '/login', name: 'Login', component: Login },
         { path: '/register', name: 'Register', component: Register },
+        { path: '/verify-email', name: 'VerifyEmail', component: VerifyEmail },
         {
             path: '/submit',
             name: 'Submit',

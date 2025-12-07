@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/api'
 import PriceTable from '@/components/PriceTable.vue'
+import PriceCards from '@/components/PriceCards.vue'
+import PriceChart from '@/components/PriceChart.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
@@ -13,6 +15,9 @@ const targetCurrency = ref('USD')
 const currencies = ref(['USD', 'CNY', 'EUR']) // Could fetch from API
 const prices = ref<Array<any>>([])
 const loading = ref(false)
+const allowedModes = ['table', 'cards', 'chart'] as const
+const displayMode = ref<typeof allowedModes[number]>('table')
+const publicSettings = ref<Record<string, string>>({})
 
 const fetchModels = async () => {
   try {
@@ -20,6 +25,22 @@ const fetchModels = async () => {
     models.value = res.data
   } catch {
     // Silent fail - models will be empty
+  }
+}
+
+const fetchPublicSettings = async () => {
+  try {
+    const res = await api.get('/config/public-settings')
+    publicSettings.value = res.data || {}
+    const mode = res.data?.home_display_mode
+    if (mode && allowedModes.includes(mode)) {
+      // Use server default only when no saved preference exists
+      if (!localStorage.getItem('homeDisplayMode')) {
+        displayMode.value = mode
+      }
+    }
+  } catch {
+    // ignore
   }
 }
 
@@ -39,7 +60,16 @@ const fetchPrices = async () => {
 }
 
 onMounted(() => {
+  const saved = localStorage.getItem('homeDisplayMode')
+  if (saved && allowedModes.includes(saved as typeof allowedModes[number])) {
+    displayMode.value = saved as typeof allowedModes[number]
+  }
   fetchModels()
+  fetchPublicSettings()
+})
+
+watch(displayMode, (val) => {
+  localStorage.setItem('homeDisplayMode', val)
 })
 </script>
 
@@ -86,12 +116,23 @@ onMounted(() => {
       </router-link>
     </div>
 
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-gray-800">{{ t('home.display_mode') }}</h3>
+      <el-radio-group v-model="displayMode" size="small">
+        <el-radio-button label="table">{{ t('home.display_table') }}</el-radio-button>
+        <el-radio-button label="cards">{{ t('home.display_cards') }}</el-radio-button>
+        <el-radio-button label="chart">{{ t('home.display_chart') }}</el-radio-button>
+      </el-radio-group>
+    </div>
+
     <!-- Results -->
-    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-h-[400px]">
+    <div class="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-h-[400px] p-4">
       <div v-if="!selectedModel" class="flex items-center justify-center h-full min-h-[300px] text-gray-400">
         {{ t('home.select_model_hint') }}
       </div>
-      <PriceTable v-else :prices="prices" :loading="loading" />
+      <PriceTable v-else-if="displayMode === 'table'" :prices="prices" :loading="loading" />
+      <PriceCards v-else-if="displayMode === 'cards'" :prices="prices" :loading="loading" />
+      <PriceChart v-else :prices="prices" :loading="loading" />
     </div>
   </div>
 </template>
