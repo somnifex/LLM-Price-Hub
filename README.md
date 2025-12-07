@@ -13,6 +13,17 @@
 
 ## 快速开始
 
+### 环境变量配置
+
+复制 `.env.example` 到 `.env` 并配置以下变量：
+- `DATABASE_URL`: 数据库连接字符串
+- `SECRET_KEY`: JWT 密钥（生产环境必须更改）
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: Token 过期时间（分钟）
+- `ENV`: 环境类型（development/production）
+- `ALLOWED_ORIGINS`: CORS 允许的源（生产环境应设置具体域名）
+
+### 启动服务
+
 ```bash
 # 启动所有服务
 docker-compose up -d

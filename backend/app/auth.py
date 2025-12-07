@@ -4,14 +4,15 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.database import get_session
 from app.models import User
+import os
 
 # Secret key settings
-SECRET_KEY = "your-secret-key-change-it-in-production"
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-it-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
@@ -46,7 +47,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
     except JWTError:
         raise credentials_exception
         
-    user = session.query(User).filter(User.email == email).first()
+    statement = select(User).where(User.email == email)
+    user = session.exec(statement).first()
     if user is None:
         raise credentials_exception
     return user

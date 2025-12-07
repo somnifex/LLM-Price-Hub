@@ -41,15 +41,19 @@ def update_exchange_rates():
         if "{KEY}" in url and api_key:
             url = url.replace("{KEY}", api_key)
             
-        with httpx.Client() as client:
+        with httpx.Client(timeout=10.0) as client:
             resp = client.get(url)
             if resp.status_code != 200:
-                logger.error(f"Exchange rate API returned {resp.status_code}")
+                logger.error(f"Exchange rate API returned {resp.status_code}: {resp.text[:200]}")
                 return
                 
             data = resp.json()
             # Support standard format (rates or conversion_rates)
             rates = data.get("rates") or data.get("conversion_rates") or {}
+            if not rates:
+                logger.error(f"No rates found in API response: {data}")
+                return
+                
             base = data.get("base") or data.get("base_code") or "USD"
             
             # Normalize to USD if base is not USD
@@ -57,14 +61,18 @@ def update_exchange_rates():
             if base != "USD" and usd_rate:
                 new_rates = {}
                 for k, v in rates.items():
-                    if v is not None:
+                    if v is not None and v > 0:
                         new_rates[k] = v / usd_rate
                 rates = new_rates
                 rates["USD"] = 1.0
             
         with get_db_session() as session:
+            updated_count = 0
             for code, rate in rates.items():
                 if len(code) > 10: continue
+                if not isinstance(rate, (int, float)) or rate <= 0:
+                    logger.warning(f"Invalid rate for {code}: {rate}")
+                    continue
                 
                 # Upsert logic
                 existing = session.get(CurrencyRate, code)
@@ -75,10 +83,15 @@ def update_exchange_rates():
                 else:
                     new_rate = CurrencyRate(code=code, rate_to_usd=rate)
                     session.add(new_rate)
+                updated_count += 1
             session.commit()
-        logger.info("Updated exchange rates")
+        logger.info(f"Updated {updated_count} exchange rates")
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout fetching exchange rates: {e}")
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error fetching exchange rates: {e}")
     except Exception as e:
-        logger.error(f"Failed to update rates: {e}")
+        logger.error(f"Failed to update rates: {e}", exc_info=True)
 
 def reschedule_exchange_job():
     """Reads interval from DB and reschedules the job."""
@@ -126,6 +139,9 @@ def check_one_provider(provider_id: int, url: str):
     # Simple check
     success = False
     try:
+        if not url:
+            return
+            
         if not url.startswith("http"):
             url = f"https://{url}"
         
@@ -133,18 +149,25 @@ def check_one_provider(provider_id: int, url: str):
             resp = client.get(url)
             if resp.status_code < 400:
                 success = True
-    except:
+    except httpx.TimeoutException:
+        logger.debug(f"Timeout checking provider {provider_id} at {url}")
+        success = False
+    except Exception as e:
+        logger.debug(f"Error checking provider {provider_id}: {e}")
         success = False
         
-    with get_db_session() as session:
-        provider = session.get(Provider, provider_id)
-        if provider:
-            # Moving average calculation
-            current_val = 100.0 if success else 0.0
-            # Alpha = 0.1 for smoothing
-            provider.uptime_rate = (provider.uptime_rate * 0.9) + (current_val * 0.1)
-            session.add(provider)
-            session.commit()
+    try:
+        with get_db_session() as session:
+            provider = session.get(Provider, provider_id)
+            if provider:
+                # Moving average calculation
+                current_val = 100.0 if success else 0.0
+                # Alpha = 0.1 for smoothing
+                provider.uptime_rate = (provider.uptime_rate * 0.9) + (current_val * 0.1)
+                session.add(provider)
+                session.commit()
+    except Exception as e:
+        logger.error(f"Failed to update provider {provider_id} uptime: {e}")
 
 def check_uptime():
     """Iterate all providers and check uptime."""

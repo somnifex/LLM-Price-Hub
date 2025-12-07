@@ -244,6 +244,33 @@ async def update_settings(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_super_admin)
 ):
+    # Validate settings
+    valid_keys = [
+        "site_name", 
+        "maintenance_mode",
+        "exchange_rate_provider",
+        "exchange_rate_url",
+        "exchange_rate_key",
+        "exchange_rate_interval_minutes"
+    ]
+    
+    for key in settings.keys():
+        if key not in valid_keys:
+            raise HTTPException(status_code=400, detail=f"Invalid setting key: {key}")
+    
+    # Validate specific settings
+    if "exchange_rate_interval_minutes" in settings:
+        try:
+            interval = int(settings["exchange_rate_interval_minutes"])
+            if interval < 5:
+                raise HTTPException(status_code=400, detail="Interval must be at least 5 minutes")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Interval must be a valid number")
+    
+    if "maintenance_mode" in settings:
+        if settings["maintenance_mode"] not in ["true", "false"]:
+            raise HTTPException(status_code=400, detail="Maintenance mode must be 'true' or 'false'")
+    
     needs_reschedule = False
     for key, value in settings.items():
         if key == "exchange_rate_interval_minutes":
