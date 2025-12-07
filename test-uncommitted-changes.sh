@@ -11,6 +11,15 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# Cleanup function
+cleanup() {
+    rm -f test_temp.txt
+    git checkout README.md 2>/dev/null || true
+}
+
+# Set trap to cleanup on exit
+trap cleanup EXIT
+
 echo "Running tests for uncommitted changes detection..."
 echo ""
 
@@ -39,10 +48,8 @@ echo "Test 3: Untracked file detection"
 echo "test" > test_temp.txt
 if ! ./check-uncommitted-changes.sh > /dev/null 2>&1; then
     echo -e "${GREEN}✓ PASS${NC}: Untracked file detected correctly"
-    rm -f test_temp.txt
 else
     echo -e "${RED}✗ FAIL${NC}: Untracked file not detected"
-    rm -f test_temp.txt
     exit 1
 fi
 
@@ -52,10 +59,8 @@ echo "Test 4: Modified file detection"
 echo "# temporary modification" >> README.md
 if ! ./check-uncommitted-changes.sh > /dev/null 2>&1; then
     echo -e "${GREEN}✓ PASS${NC}: Modified file detected correctly"
-    git checkout README.md
 else
     echo -e "${RED}✗ FAIL${NC}: Modified file not detected"
-    git checkout README.md
     exit 1
 fi
 

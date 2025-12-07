@@ -10,13 +10,13 @@ YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-# Check if there are uncommitted changes (excluding staged changes)
-if git diff --quiet && git diff --cached --quiet; then
-    # No changes to commit
-    echo -e "${YELLOW}Warning: No changes detected${NC}"
+# Check if there are staged changes (should always be true in pre-commit)
+if ! git diff --cached --quiet; then
+    # There are staged changes - this is expected for a commit
+    echo -e "${GREEN}✓ Staged changes detected, proceeding with commit...${NC}"
 else
-    # There are changes - this is expected for a commit
-    echo -e "${GREEN}✓ Changes detected, proceeding with commit...${NC}"
+    # No staged changes - this shouldn't happen in a normal commit
+    echo -e "${YELLOW}Warning: No staged changes detected${NC}"
 fi
 
 # Check for untracked files that might need to be added
@@ -25,11 +25,17 @@ if [ -n "$UNTRACKED" ]; then
     echo -e "${YELLOW}Warning: Untracked files detected:${NC}"
     echo "$UNTRACKED" | sed 's/^/  /'
     echo ""
-    read -p "Do you want to continue with the commit? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}Commit aborted${NC}"
-        exit 1
+    
+    # Check if we're in an interactive terminal and not in CI
+    if [ -t 0 ] && [ -z "$CI" ] && [ -z "$GITHUB_ACTIONS" ]; then
+        read -p "Do you want to continue with the commit? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${RED}Commit aborted${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${YELLOW}Non-interactive mode: proceeding with commit${NC}"
     fi
 fi
 
