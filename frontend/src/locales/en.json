@@ -6,7 +6,13 @@
         "login": "Login",
         "register": "Register",
         "logout": "Logout",
-        "api_keys": "API Keys"
+        "api_keys": "API Keys",
+        "settings": "Settings"
+    },
+    "currency": {
+        "USD": "USD",
+        "CNY": "CNY",
+        "EUR": "EUR"
     },
     "home": {
         "title": "LLM Price Hub",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "API Keys Management",
+        "user_settings": "User Settings",
+        "admin_dashboard": "Admin Dashboard",
+        "security_tab": "Security",
+        "api_keys_tab": "API Keys",
+        "channels_tab": "Personal Channels",
         "encryption_settings": "Encryption Settings",
         "enabled": "Enabled",
         "disabled": "Disabled",

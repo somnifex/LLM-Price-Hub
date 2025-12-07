@@ -6,7 +6,13 @@
         "login": "تسجيل الدخول",
         "register": "التسجيل",
         "logout": "تسجيل الخروج",
-        "api_keys": "مفاتيح API"
+        "api_keys": "مفاتيح API",
+        "settings": "الإعدادات"
+    },
+    "currency": {
+        "USD": "دولار (USD)",
+        "CNY": "يوان (CNY)",
+        "EUR": "يورو (EUR)"
     },
     "home": {
         "title": "مركز أسعار LLM",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "إدارة مفاتيح API",
+        "user_settings": "إعدادات المستخدم",
+        "admin_dashboard": "لوحة تحكم المسؤول",
+        "security_tab": "الأمان",
+        "api_keys_tab": "مفاتيح API",
+        "channels_tab": "القنوات الشخصية",
         "encryption_settings": "إعدادات التشفير",
         "enabled": "مفعل",
         "disabled": "معطل",

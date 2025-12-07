@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from pydantic import BaseModel, EmailStr
 import pyotp
 from app.database import get_session
-from app.models import User, SystemSetting, EmailVerificationToken
+from app.models import User, SystemSetting, EmailVerificationToken, UserSettings
 from app.auth import (
     get_password_hash,
     verify_password,
@@ -123,19 +123,19 @@ async def login_for_access_token(
             status_code=status.HTTP_403_FORBIDDEN, detail="EMAIL_NOT_VERIFIED"
         )
 
-    if user.totp_enabled:
+    if user.settings and user.settings.totp_enabled:
         if not totp_code:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="TOTP_REQUIRED"
             )
-        totp = pyotp.TOTP(user.totp_secret)
+        totp = pyotp.TOTP(user.settings.totp_secret)
         if not totp.verify(totp_code, valid_window=1):
             # Allow use of backup codes once
-            backup_codes = json.loads(user.totp_backup_codes or "[]")
+            backup_codes = json.loads(user.settings.totp_backup_codes or "[]")
             if totp_code in backup_codes:
                 backup_codes.remove(totp_code)
-                user.totp_backup_codes = json.dumps(backup_codes)
-                session.add(user)
+                user.settings.totp_backup_codes = json.dumps(backup_codes)
+                session.add(user.settings)
                 session.commit()
             else:
                 raise HTTPException(
@@ -190,10 +190,21 @@ async def resend_verification(req: EmailRequest, session: Session = Depends(get_
 
 
 @router.get("/totp/status")
-async def totp_status(current_user: User = Depends(get_current_active_user)):
+async def totp_status(
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session),
+):
+    settings = current_user.settings
+    if not settings:
+        return {
+            "enabled": False,
+            "has_backup_codes": False,
+            "email_verified": current_user.email_verified,
+        }
+    
     return {
-        "enabled": current_user.totp_enabled,
-        "has_backup_codes": bool(json.loads(current_user.totp_backup_codes or "[]")),
+        "enabled": settings.totp_enabled,
+        "has_backup_codes": bool(json.loads(settings.totp_backup_codes or "[]")),
         "email_verified": current_user.email_verified,
     }
 
@@ -203,9 +214,14 @@ async def totp_initiate(
     current_user: User = Depends(get_current_active_user),
     session: Session = Depends(get_session),
 ):
+    settings = current_user.settings
+    if not settings:
+        settings = UserSettings(user_id=current_user.id)
+        session.add(settings)
+    
     secret = pyotp.random_base32()
-    current_user.totp_temp_secret = secret
-    session.add(current_user)
+    settings.totp_temp_secret = secret
+    session.add(settings)
     session.commit()
 
     issuer = _get_setting(session, "site_name", "LLM Price Hub") or "LLM Price Hub"
@@ -222,19 +238,20 @@ async def totp_activate(
     session: Session = Depends(get_session),
 ):
     code = req.code
-    if not current_user.totp_temp_secret:
+    settings = current_user.settings
+    if not settings or not settings.totp_temp_secret:
         raise HTTPException(status_code=400, detail="No pending TOTP setup")
 
-    totp = pyotp.TOTP(current_user.totp_temp_secret)
+    totp = pyotp.TOTP(settings.totp_temp_secret)
     if not totp.verify(code, valid_window=1):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
     backup_codes = [secrets.token_hex(4) for _ in range(6)]
-    current_user.totp_secret = current_user.totp_temp_secret
-    current_user.totp_temp_secret = None
-    current_user.totp_enabled = True
-    current_user.totp_backup_codes = json.dumps(backup_codes)
-    session.add(current_user)
+    settings.totp_secret = settings.totp_temp_secret
+    settings.totp_temp_secret = None
+    settings.totp_enabled = True
+    settings.totp_backup_codes = json.dumps(backup_codes)
+    session.add(settings)
     session.commit()
     return {"message": "TOTP enabled", "backup_codes": backup_codes}
 
@@ -246,11 +263,12 @@ async def totp_disable(
     session: Session = Depends(get_session),
 ):
     code = req.code
-    if not current_user.totp_enabled or not current_user.totp_secret:
+    settings = current_user.settings
+    if not settings or not settings.totp_enabled or not settings.totp_secret:
         return {"message": "TOTP not enabled"}
 
-    totp = pyotp.TOTP(current_user.totp_secret)
-    backup_codes = json.loads(current_user.totp_backup_codes or "[]")
+    totp = pyotp.TOTP(settings.totp_secret)
+    backup_codes = json.loads(settings.totp_backup_codes or "[]")
 
     if not totp.verify(code, valid_window=1):
         if code in backup_codes:
@@ -258,10 +276,10 @@ async def totp_disable(
         else:
             raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
-    current_user.totp_enabled = False
-    current_user.totp_secret = None
-    current_user.totp_temp_secret = None
-    current_user.totp_backup_codes = json.dumps(backup_codes)
-    session.add(current_user)
+    settings.totp_enabled = False
+    settings.totp_secret = None
+    settings.totp_temp_secret = None
+    settings.totp_backup_codes = json.dumps(backup_codes)
+    session.add(settings)
     session.commit()
     return {"message": "TOTP disabled"}

@@ -122,7 +122,7 @@ watch(displayMode, (val) => {
           
           <div class="w-full md:w-48 border-t md:border-t-0 md:border-l border-gray-100">
              <el-select v-model="targetCurrency" size="large" class="w-full custom-select-hero" @change="fetchPrices">
-              <el-option v-for="curr in currencies" :key="curr" :label="curr" :value="curr" />
+              <el-option v-for="curr in currencies" :key="curr" :label="t('currency.' + curr)" :value="curr" />
             </el-select>
           </div>
         </div>

@@ -6,7 +6,13 @@
         "login": "登录",
         "register": "注册",
         "logout": "退出登录",
-        "api_keys": "API 密钥"
+        "api_keys": "API 密钥",
+        "settings": "设置"
+    },
+    "currency": {
+        "USD": "美元 (USD)",
+        "CNY": "人民币 (CNY)",
+        "EUR": "欧元 (EUR)"
     },
     "home": {
         "title": "大模型比价平台",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "API 密钥管理",
+        "user_settings": "用户设置",
+        "admin_dashboard": "管理后台",
+        "security_tab": "安全设置",
+        "api_keys_tab": "API 密钥",
+        "channels_tab": "个人渠道",
         "encryption_settings": "加密设置",
         "enabled": "已启用",
         "disabled": "未启用",

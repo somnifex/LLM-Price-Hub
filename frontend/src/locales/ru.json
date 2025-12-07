@@ -6,7 +6,13 @@
         "login": "Вход",
         "register": "Регистрация",
         "logout": "Выход",
-        "api_keys": "API ключи"
+        "api_keys": "API ключи",
+        "settings": "Настройки"
+    },
+    "currency": {
+        "USD": "Доллар (USD)",
+        "CNY": "Юань (CNY)",
+        "EUR": "Евро (EUR)"
     },
     "home": {
         "title": "Центр цен LLM",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "Управление API ключами",
+        "user_settings": "Настройки пользователя",
+        "admin_dashboard": "Панель администратора",
+        "security_tab": "Безопасность",
+        "api_keys_tab": "API ключи",
+        "channels_tab": "Личные каналы",
         "encryption_settings": "Настройки шифрования",
         "enabled": "Включено",
         "disabled": "Отключено",

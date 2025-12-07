@@ -8,7 +8,7 @@ import Register from '@/views/Register.vue'
 import AdminUsers from '@/views/AdminUsers.vue'
 import AdminSettings from '@/views/AdminSettings.vue'
 import AdminContent from '@/views/AdminContent.vue'
-import UserKeys from '@/views/UserKeys.vue'
+import UserSettings from '@/views/UserSettings.vue'
 import VerifyEmail from '@/views/VerifyEmail.vue'
 
 const router = createRouter({
@@ -25,9 +25,9 @@ const router = createRouter({
             meta: { requiresAuth: true }
         },
         {
-            path: '/keys',
-            name: 'UserKeys',
-            component: UserKeys,
+            path: '/settings',
+            name: 'UserSettings',
+            component: UserSettings,
             meta: { requiresAuth: true }
         },
         {

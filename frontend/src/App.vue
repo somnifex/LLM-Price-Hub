@@ -65,9 +65,9 @@ const getCurrentLangName = (lang: string) => {
                 {{ t('nav.submit') }}
               </button>
             </router-link>
-            <router-link to="/keys" custom v-slot="{ navigate, isActive }">
+            <router-link to="/settings" custom v-slot="{ navigate, isActive }">
               <button @click="navigate" :class="['px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200', isActive ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50']">
-                {{ t('nav.api_keys') }}
+                {{ t('nav.settings') }}
               </button>
             </router-link>
             <router-link v-if="authStore.isAdmin" to="/admin" custom v-slot="{ navigate, isActive }">

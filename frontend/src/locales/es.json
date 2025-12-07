@@ -6,7 +6,13 @@
         "login": "Iniciar sesión",
         "register": "Registrarse",
         "logout": "Cerrar sesión",
-        "api_keys": "Claves API"
+        "api_keys": "Claves API",
+        "settings": "Configuración"
+    },
+    "currency": {
+        "USD": "Dólar (USD)",
+        "CNY": "Yuan (CNY)",
+        "EUR": "Euro (EUR)"
     },
     "home": {
         "title": "Centro de Precios LLM",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "Gestión de claves API",
+        "user_settings": "Configuración de Usuario",
+        "admin_dashboard": "Panel de Administración",
+        "security_tab": "Seguridad",
+        "api_keys_tab": "Claves API",
+        "channels_tab": "Canales Personales",
         "encryption_settings": "Configuración de cifrado",
         "enabled": "Habilitado",
         "disabled": "Deshabilitado",

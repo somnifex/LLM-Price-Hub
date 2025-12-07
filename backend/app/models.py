@@ -85,12 +85,6 @@ class User(SQLModel, table=True):
     email_verified: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # TOTP 2FA
-    totp_enabled: bool = Field(default=False)
-    totp_secret: Optional[str] = Field(default=None, max_length=64)
-    totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
-    totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
-
     prices: list["ModelPrice"] = Relationship(back_populates="submitter")
     private_providers: list["Provider"] = Relationship(back_populates="owner")
     api_keys: list["UserAPIKey"] = Relationship(back_populates="user")
@@ -166,9 +160,17 @@ class Review(SQLModel, table=True):
 class UserSettings(SQLModel, table=True):
     __tablename__ = "user_settings"
     user_id: int = Field(primary_key=True, foreign_key="users.id")
+    
+    # E2EE Settings
     e2ee_enabled: bool = Field(default=False)
     e2ee_salt: Optional[str] = Field(default=None, max_length=255)
     e2ee_verification: Optional[str] = Field(default=None, max_length=500)
+
+    # TOTP 2FA Settings
+    totp_enabled: bool = Field(default=False)
+    totp_secret: Optional[str] = Field(default=None, max_length=64)
+    totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
+    totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
 
     user: Optional[User] = Relationship(back_populates="settings")
 

@@ -6,7 +6,13 @@
         "login": "Connexion",
         "register": "Inscription",
         "logout": "Déconnexion",
-        "api_keys": "Clés API"
+        "api_keys": "Clés API",
+        "settings": "Paramètres"
+    },
+    "currency": {
+        "USD": "Dollar (USD)",
+        "CNY": "Yuan (CNY)",
+        "EUR": "Euro (EUR)"
     },
     "home": {
         "title": "Hub des prix LLM",
@@ -177,6 +183,11 @@
     },
     "keys": {
         "title": "Gestion des clés API",
+        "user_settings": "Paramètres utilisateur",
+        "admin_dashboard": "Tableau de bord administrateur",
+        "security_tab": "Sécurité",
+        "api_keys_tab": "Clés API",
+        "channels_tab": "Canaux personnels",
         "encryption_settings": "Paramètres de chiffrement",
         "enabled": "Activé",
         "disabled": "Désactivé",
