@@ -21,7 +21,7 @@ const activeIndex = route.path
       <!-- Sidebar -->
       <div class="w-64 bg-white shadow-md flex flex-col">
           <div class="p-6 border-b">
-              <h1 class="text-2xl font-bold text-red-600">{{ t('admin.admin_panel') }}</h1>
+              <h1 class="text-2xl font-bold text-gray-800">{{ t('admin.admin_panel') }}</h1>
           </div>
           <el-menu :default-active="activeIndex" router class="flex-1 border-r-0">
               <template v-for="item in menuItems" :key="item.path">

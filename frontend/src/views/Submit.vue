@@ -174,8 +174,12 @@ onMounted(() => {
 
 <template>
   <div class="max-w-3xl mx-auto px-4 py-8">
-    <h2 class="text-3xl font-bold mb-6">{{ t('submit.title') }}</h2>
-    <div class="bg-white p-6 rounded-lg shadow border border-gray-100">
+    <el-card>
+      <template #header>
+        <div class="flex justify-between items-center">
+          <span class="text-xl font-bold">{{ t('submit.title') }}</span>
+        </div>
+      </template>
       <el-form label-position="top">
         
         <!-- Provider Section -->
@@ -331,6 +335,6 @@ onMounted(() => {
           {{ t('submit.submit_btn') }}
         </el-button>
       </el-form>
-    </div>
+    </el-card>
   </div>
 </template>

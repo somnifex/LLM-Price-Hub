@@ -36,8 +36,12 @@ onMounted(fetchUsers)
 </script>
 
 <template>
-  <div>
-    <h3 class="text-xl font-bold mb-4">{{ t('admin.user_management') }}</h3>
+  <el-card>
+    <template #header>
+      <div class="flex justify-between items-center">
+        <span class="text-xl font-bold">{{ t('admin.user_management') }}</span>
+      </div>
+    </template>
     <el-table :data="users" v-loading="loading">
       <el-table-column prop="id" :label="t('admin.id')" width="60" />
       <el-table-column prop="email" :label="t('admin.email')" />
@@ -55,5 +59,5 @@ onMounted(fetchUsers)
         </template>
       </el-table-column>
     </el-table>
-  </div>
+  </el-card>
 </template>

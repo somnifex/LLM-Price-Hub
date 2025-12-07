@@ -4,8 +4,6 @@ from typing import Generator
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
-logger.info(f"Using Database URL: {DATABASE_URL}")
-
 connect_args = {}
 if "sqlite" in DATABASE_URL:
     # SQLite specific configuration
@@ -15,17 +13,13 @@ ECHO_SQL = os.getenv("ECHO_SQL", "False").lower() == "true"
 engine = create_engine(DATABASE_URL, echo=ECHO_SQL, connect_args=connect_args)
 
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 def init_db():
     # Import models to ensure they are registered on the metadata
     from app import models
     import time
     from sqlalchemy.exc import OperationalError
 
-    logger.info("Initializing database...")
+    print("Creating database tables...")
     
     max_retries = 10
     retry_interval = 3
@@ -33,14 +27,15 @@ def init_db():
     for i in range(max_retries):
         try:
             SQLModel.metadata.create_all(engine)
-            logger.info("Database tables created successfully.")
+            print("Database tables created successfully.")
             return
         except OperationalError as e:
             if i < max_retries - 1:
-                logger.warning(f"Database connection failed, retrying in {retry_interval} seconds... ({i+1}/{max_retries})")
+                print(f"Database connection failed, retrying in {retry_interval} seconds... ({i+1}/{max_retries})")
+                print(f"Error: {e}")
                 time.sleep(retry_interval)
             else:
-                logger.error("Failed to connect to database after multiple retries.")
+                print("Failed to connect to database after multiple retries.")
                 raise e
 
 

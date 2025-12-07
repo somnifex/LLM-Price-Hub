@@ -428,13 +428,12 @@ onMounted(async () => {
 
 <template>
   <div class="container mx-auto p-6 max-w-6xl">
-    <h1 class="text-3xl font-bold mb-6">{{ t('keys.title') }}</h1>
-
+    
     <!-- TOTP Section -->
     <el-card class="mb-6">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-xl font-semibold">{{ t('keys.totp_title') }}</span>
+          <span class="text-xl font-bold">{{ t('keys.totp_title') }}</span>
           <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
         </div>
       </template>
@@ -462,7 +461,7 @@ onMounted(async () => {
     <el-card class="mb-6">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-xl font-semibold">{{ t('keys.encryption_settings') }}</span>
+          <span class="text-xl font-bold">{{ t('keys.encryption_settings') }}</span>
           <el-tag v-if="e2eeEnabled" type="success">{{ t('keys.enabled') }}</el-tag>
           <el-tag v-else type="info">{{ t('keys.disabled') }}</el-tag>
         </div>
@@ -489,7 +488,7 @@ onMounted(async () => {
     <el-card class="mb-6">
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-xl font-semibold">{{ t('keys.my_providers') }}</span>
+          <span class="text-xl font-bold">{{ t('keys.my_providers') }}</span>
           <el-button type="primary" size="small" @click="showAddProviderDialog = true">
             {{ t('keys.add_provider') }}
           </el-button>
@@ -544,7 +543,7 @@ onMounted(async () => {
     <el-card>
       <template #header>
         <div class="flex justify-between items-center">
-          <span class="text-xl font-semibold">{{ t('keys.my_api_keys') }}</span>
+          <span class="text-xl font-bold">{{ t('keys.my_api_keys') }}</span>
           <el-button type="primary" size="small" @click="showAddKeyDialog = true">
             {{ t('keys.add_key') }}
           </el-button>

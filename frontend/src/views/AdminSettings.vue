@@ -98,8 +98,13 @@ onMounted(fetchSettings)
 </script>
 
 <template>
-  <div class="max-w-xl">
-    <h3 class="text-xl font-bold mb-4">{{ t('admin.settings') }}</h3>
+  <el-card>
+    <template #header>
+      <div class="flex justify-between items-center">
+        <span class="text-xl font-bold">{{ t('admin.settings') }}</span>
+      </div>
+    </template>
+    <div class="max-w-xl">
     <el-form label-position="top" v-loading="loading">
         <el-form-item :label="t('admin.site_name')">
             <el-input v-model="settings.site_name" />
@@ -183,5 +188,6 @@ onMounted(fetchSettings)
 
         <el-button type="primary" @click="saveSettings">{{ t('admin.save') }}</el-button>
     </el-form>
-  </div>
+    </div>
+  </el-card>
 </template>
