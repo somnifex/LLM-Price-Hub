@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
-import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const route = useRoute()
 
 const menuItems = [
     { key: 'content_moderation', path: '/admin/content', icon: 'Document' },
@@ -13,33 +12,48 @@ const menuItems = [
     { key: 'settings', path: '/admin/settings', icon: 'Setting', role: 'super_admin' },
 ]
 
-const activeIndex = route.path
+const filteredMenuItems = computed(() => {
+    return menuItems.filter(item => !item.role || (item.role === 'super_admin' && authStore.isSuperAdmin))
+})
 </script>
 
 <template>
-  <div class="flex h-screen bg-gray-100">
-      <!-- Sidebar -->
-      <div class="w-64 bg-white shadow-md flex flex-col">
-          <div class="p-6 border-b">
-              <h1 class="text-2xl font-bold text-gray-800">{{ t('admin.admin_panel') }}</h1>
-          </div>
-          <el-menu :default-active="activeIndex" router class="flex-1 border-r-0">
-              <template v-for="item in menuItems" :key="item.path">
-                   <el-menu-item :index="item.path" v-if="!item.role || (item.role === 'super_admin' && authStore.isSuperAdmin)">
-                      <el-icon><component :is="item.icon" /></el-icon>
-                      <span>{{ t('admin.' + item.key) }}</span>
-                  </el-menu-item>
-              </template>
-          </el-menu>
-          <div class="p-4 border-t">
-              <div class="text-sm text-gray-500 mb-2">{{ t('admin.logged_in_as') }} {{ authStore.user?.email }}</div>
-              <el-button type="danger" plain class="w-full" @click="authStore.logout">{{ t('nav.logout') }}</el-button>
-          </div>
-      </div>
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold text-gray-900">{{ t('admin.admin_panel') }}</h1>
+    </div>
 
-      <!-- Main Content -->
-      <div class="flex-1 overflow-auto p-8">
-          <router-view></router-view>
-      </div>
+    <!-- Navigation -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 p-1 inline-flex">
+        <div class="flex space-x-1">
+            <router-link 
+                v-for="item in filteredMenuItems" 
+                :key="item.path" 
+                :to="item.path"
+                custom
+                v-slot="{ navigate, isActive }"
+            >
+                <button 
+                    @click="navigate"
+                    :class="[
+                        'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200',
+                        isActive 
+                            ? 'bg-primary-50 text-primary-700 shadow-sm' 
+                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ]"
+                >
+                    <el-icon><component :is="item.icon" /></el-icon>
+                    {{ t('admin.' + item.key) }}
+                </button>
+            </router-link>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <router-view v-slot="{ Component }">
+        <transition name="el-fade-in-linear" mode="out-in">
+            <component :is="Component" />
+        </transition>
+    </router-view>
   </div>
 </template>
