@@ -1,24 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '@/stores/settings'
 
 const { t } = useI18n()
 const router = useRouter()
+const settingsStore = useSettingsStore()
 
 // Data
 const models = ref<Array<{id: number, name: string, vendor?: string}>>([])
 const providers = ref<Array<{id: number, name: string, status?: string}>>([])
 const loading = ref(false)
 
-// Form state
+// Provider form
 const providerMode = ref<'existing' | 'new'>('existing')
-const modelMode = ref<'existing' | 'new'>('existing')
-
-const form = ref({
-  // Provider
+const formProvider = ref({
   provider_id: null as number | null,
   provider_name: '',
   provider_website: '',
@@ -27,28 +26,80 @@ const form = ref({
   claude_base_url: '',
   submit_provider_for_review: false,
   provider_proof_type: 'text',
-  provider_proof_content: '',
-  
-  // Model
-  standard_model_id: null as number | null,
-  new_model_name: '',
-  new_model_vendor: '',
-  provider_model_name: '',
-  
-  // Price
-  price_in: 0,
-  price_out: 0,
-  currency: 'USD',
-  
-  // Proof
-  proof_type: 'text',
-  proof_content: ''
+  provider_proof_content: ''
 })
 
-const file = ref<File | null>(null)
+// Model price rows
+type PriceRow = {
+  mode: 'existing' | 'new'
+  standard_model_id: number | null
+  new_model_name: string
+  new_model_vendor: string
+  provider_model_name: string
+  price_in: number
+  price_out: number
+  cache_hit_input_price: number | null
+  cache_hit_output_price: number | null
+  currency: string
+  proof_type: 'text' | 'url'
+  proof_content: string
+}
 
-const handleFileChange = (uploadFile: any) => {
-  file.value = uploadFile.raw
+const priceRows = ref<PriceRow[]>([
+  {
+    mode: 'existing',
+    standard_model_id: null,
+    new_model_name: '',
+    new_model_vendor: '',
+    provider_model_name: '',
+    price_in: 0,
+    price_out: 0,
+    cache_hit_input_price: null,
+    cache_hit_output_price: null,
+    currency: 'USD',
+    proof_type: 'text',
+    proof_content: ''
+  }
+])
+
+const currencyOptions = computed(() => {
+  const list = settingsStore.currencies
+  if (!list || !list.length) {
+    return [
+      { label: 'USD', value: 'USD' },
+      { label: 'CNY', value: 'CNY' },
+      { label: 'EUR', value: 'EUR' },
+    ]
+  }
+  const commons = list.filter((c: any) => c.is_common)
+  const rest = list.filter((c: any) => !c.is_common)
+  const ordered = [...commons, ...rest]
+  return ordered.map((c: any) => {
+    const flag = c.flag ? `${c.flag} ` : ''
+    return { label: `${flag}${c.code}`, value: c.code }
+  })
+})
+
+const addRow = () => {
+  priceRows.value.push({
+    mode: 'existing',
+    standard_model_id: null,
+    new_model_name: '',
+    new_model_vendor: '',
+    provider_model_name: '',
+    price_in: 0,
+    price_out: 0,
+    cache_hit_input_price: null,
+    cache_hit_output_price: null,
+    currency: settingsStore.userSettings.default_currency || 'USD',
+    proof_type: 'text',
+    proof_content: ''
+  })
+}
+
+const removeRow = (idx: number) => {
+  if (priceRows.value.length === 1) return
+  priceRows.value.splice(idx, 1)
 }
 
 const fetchModels = async () => {
@@ -74,266 +125,232 @@ const fetchProviders = async () => {
 }
 
 const submit = async () => {
-  // Validation
-  if (providerMode.value === 'existing' && !form.value.provider_id) {
+  // Provider validation
+  if (providerMode.value === 'existing' && !formProvider.value.provider_id) {
     ElMessage.error(t('submit.select_provider_error'))
     return
   }
-  if (providerMode.value === 'new' && !form.value.provider_name) {
+  if (providerMode.value === 'new' && !formProvider.value.provider_name) {
     ElMessage.error(t('submit.enter_provider_name'))
     return
   }
-  if (modelMode.value === 'existing' && !form.value.standard_model_id) {
-    ElMessage.error(t('submit.select_model_error'))
-    return
-  }
-  if (modelMode.value === 'new' && !form.value.new_model_name) {
-    ElMessage.error(t('submit.enter_model_name'))
-    return
-  }
-  if (!form.value.proof_type || !form.value.proof_content) {
-    if (form.value.proof_type !== 'image' || !file.value) {
+
+  // Rows validation
+  for (const row of priceRows.value) {
+    if (row.mode === 'existing' && !row.standard_model_id) {
+      ElMessage.error(t('submit.select_model_error'))
+      return
+    }
+    if (row.mode === 'new' && !row.new_model_name) {
+      ElMessage.error(t('submit.enter_model_name'))
+      return
+    }
+    if (!row.proof_content) {
       ElMessage.error(t('submit.proof_required'))
       return
     }
   }
 
   loading.value = true
-  const formData = new FormData()
-  
-  // Provider
-  if (providerMode.value === 'existing') {
-    formData.append('provider_id', String(form.value.provider_id))
-  } else {
-    formData.append('provider_name', form.value.provider_name)
-    formData.append('provider_website', form.value.provider_website)
-    formData.append('openai_base_url', form.value.openai_base_url)
-    formData.append('gemini_base_url', form.value.gemini_base_url)
-    formData.append('claude_base_url', form.value.claude_base_url)
-    formData.append('submit_provider_for_review', String(form.value.submit_provider_for_review))
-    if (form.value.submit_provider_for_review) {
-      formData.append('provider_proof_type', form.value.provider_proof_type)
-      formData.append('provider_proof_content', form.value.provider_proof_content)
-    }
-  }
-  
-  // Model
-  if (modelMode.value === 'existing') {
-    formData.append('standard_model_id', String(form.value.standard_model_id))
-  } else {
-    formData.append('new_model_name', form.value.new_model_name)
-    formData.append('new_model_vendor', form.value.new_model_vendor)
-  }
-  formData.append('provider_model_name', form.value.provider_model_name)
-  
-  // Price
-  formData.append('price_in', form.value.price_in.toString())
-  formData.append('price_out', form.value.price_out.toString())
-  formData.append('currency', form.value.currency)
-  
-  // Proof
-  formData.append('proof_type', form.value.proof_type)
-  if (form.value.proof_type === 'image' && file.value) {
-    formData.append('file', file.value)
-    formData.append('proof_content', '')
-  } else {
-    formData.append('proof_content', form.value.proof_content)
-  }
-
   try {
-    await api.post('/prices/submit', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
-    ElMessage.success(t('submit.success'))
-    router.push('/')
-  } catch (e: any) {
-    if (e.response?.status === 202) {
-      // Model request submitted
-      let msg = e.response.data.detail
-      if (Array.isArray(msg)) {
-        msg = msg.map((err: any) => err.msg).join(', ')
-      }
-      ElMessage.warning(msg)
-    } else {
-      let msg = e.response?.data?.detail
-      if (Array.isArray(msg)) {
-        msg = msg.map((err: any) => err.msg).join(', ')
-      }
-      ElMessage.error(msg || t('submit.failed'))
+    const payload = {
+      provider_id: providerMode.value === 'existing' ? formProvider.value.provider_id : null,
+      provider_name: providerMode.value === 'new' ? formProvider.value.provider_name : undefined,
+      provider_website: formProvider.value.provider_website,
+      openai_base_url: formProvider.value.openai_base_url,
+      gemini_base_url: formProvider.value.gemini_base_url,
+      claude_base_url: formProvider.value.claude_base_url,
+      submit_provider_for_review: formProvider.value.submit_provider_for_review,
+      provider_proof_type: formProvider.value.provider_proof_type,
+      provider_proof_content: formProvider.value.provider_proof_content,
+      prices: priceRows.value.map(r => ({
+        standard_model_id: r.mode === 'existing' ? r.standard_model_id : null,
+        new_model_name: r.mode === 'new' ? r.new_model_name : null,
+        new_model_vendor: r.mode === 'new' ? r.new_model_vendor : null,
+        provider_model_name: r.provider_model_name,
+        price_in: r.price_in,
+        price_out: r.price_out,
+        cache_hit_input_price: r.cache_hit_input_price,
+        cache_hit_output_price: r.cache_hit_output_price,
+        currency: r.currency,
+        proof_type: r.proof_type,
+        proof_content: r.proof_content
+      }))
     }
+
+    await api.post('/prices/submit-batch', payload)
+    ElMessage.success(t('submit.success'))
+    router.push('/admin')
+  } catch (e: any) {
+    const msg = e?.response?.data?.detail || t('submit.failed')
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await settingsStore.fetchCurrencies()
+  await settingsStore.fetchUserSettings()
+  // Update existing rows to default currency if available
+  const def = settingsStore.userSettings.default_currency || 'USD'
+  priceRows.value = priceRows.value.map(r => ({ ...r, currency: def }))
   fetchModels()
   fetchProviders()
 })
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 py-8">
+  <div class="max-w-4xl mx-auto px-4 py-8">
     <el-card>
       <template #header>
         <div class="flex justify-between items-center">
           <span class="text-xl font-bold">{{ t('submit.title') }}</span>
+          <el-button link type="primary" @click="addRow">{{ t('submit.add_row') }}</el-button>
         </div>
       </template>
+
       <el-form label-position="top">
-        
         <!-- Provider Section -->
         <div class="mb-6">
           <h3 class="text-lg font-semibold mb-4 border-b pb-2">{{ t('submit.provider_section') }}</h3>
-          
+
           <el-radio-group v-model="providerMode" class="mb-4">
             <el-radio value="existing">{{ t('submit.use_existing_provider') }}</el-radio>
             <el-radio value="new">{{ t('submit.create_new_provider') }}</el-radio>
           </el-radio-group>
-          
+
           <template v-if="providerMode === 'existing'">
             <el-form-item :label="t('submit.select_provider')">
-              <el-select v-model="form.provider_id" class="w-full" filterable>
+              <el-select v-model="formProvider.provider_id" class="w-full" filterable>
                 <el-option v-for="p in providers" :key="p.id" :label="p.name" :value="p.id" />
               </el-select>
             </el-form-item>
           </template>
-          
           <template v-else>
             <el-form-item :label="t('submit.provider_name')">
-              <el-input v-model="form.provider_name" :placeholder="t('submit.provider_name_placeholder')" />
+              <el-input v-model="formProvider.provider_name" :placeholder="t('submit.provider_name_placeholder')" />
             </el-form-item>
             <el-form-item :label="t('submit.provider_website')">
-              <el-input v-model="form.provider_website" placeholder="https://example.com" />
+              <el-input v-model="formProvider.provider_website" placeholder="https://example.com" />
             </el-form-item>
-            
+
             <el-collapse class="mb-4">
               <el-collapse-item :title="t('submit.api_base_urls')">
                 <el-form-item label="OpenAI Base URL">
-                  <el-input v-model="form.openai_base_url" placeholder="https://api.openai.com/v1" />
+                  <el-input v-model="formProvider.openai_base_url" placeholder="https://api.openai.com/v1" />
                 </el-form-item>
                 <el-form-item label="Gemini Base URL">
-                  <el-input v-model="form.gemini_base_url" />
+                  <el-input v-model="formProvider.gemini_base_url" />
                 </el-form-item>
                 <el-form-item label="Claude Base URL">
-                  <el-input v-model="form.claude_base_url" />
+                  <el-input v-model="formProvider.claude_base_url" />
                 </el-form-item>
               </el-collapse-item>
             </el-collapse>
-            
+
             <el-form-item>
-              <el-switch v-model="form.submit_provider_for_review" :active-text="t('submit.submit_provider_public')" />
+              <el-switch v-model="formProvider.submit_provider_for_review" :active-text="t('submit.submit_provider_public')" />
             </el-form-item>
-            
-            <template v-if="form.submit_provider_for_review">
+
+            <template v-if="formProvider.submit_provider_for_review">
               <el-form-item :label="t('submit.provider_proof')">
-                <el-radio-group v-model="form.provider_proof_type">
+                <el-radio-group v-model="formProvider.provider_proof_type">
                   <el-radio value="text">{{ t('submit.proof_text') }}</el-radio>
                   <el-radio value="url">{{ t('submit.proof_url') }}</el-radio>
                 </el-radio-group>
               </el-form-item>
               <el-form-item>
-                <el-input v-model="form.provider_proof_content" 
-                  :type="form.provider_proof_type === 'text' ? 'textarea' : 'text'"
-                  :placeholder="form.provider_proof_type === 'url' ? 'https://docs.example.com/pricing' : t('submit.proof_description')" />
+                <el-input
+                  v-model="formProvider.provider_proof_content"
+                  :type="formProvider.provider_proof_type === 'text' ? 'textarea' : 'text'"
+                  :placeholder="formProvider.provider_proof_type === 'url' ? 'https://docs.example.com/pricing' : t('submit.proof_description')"
+                />
               </el-form-item>
             </template>
           </template>
         </div>
-        
-        <!-- Model Section -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold mb-4 border-b pb-2">{{ t('submit.model_section') }}</h3>
-          
-          <el-radio-group v-model="modelMode" class="mb-4">
-            <el-radio value="existing">{{ t('submit.use_existing_model') }}</el-radio>
-            <el-radio value="new">{{ t('submit.request_new_model') }}</el-radio>
-          </el-radio-group>
-          
-          <template v-if="modelMode === 'existing'">
-            <el-form-item :label="t('submit.standard_model')">
-              <el-select v-model="form.standard_model_id" :placeholder="t('submit.select_model')" class="w-full" filterable>
-                <el-option v-for="m in models" :key="m.id" :label="`${m.name}${m.vendor ? ' (' + m.vendor + ')' : ''}`" :value="m.id" />
+
+        <!-- Model Price Rows -->
+        <div class="space-y-6">
+          <div
+            v-for="(row, idx) in priceRows"
+            :key="idx"
+            class="p-4 border rounded-lg bg-gray-50"
+          >
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-semibold">{{ t('submit.row_title') }} #{{ idx + 1 }}</h4>
+              <el-button link type="danger" @click="removeRow(idx)" :disabled="priceRows.length === 1">{{ t('submit.remove_row') }}</el-button>
+            </div>
+
+            <el-radio-group v-model="row.mode" class="mb-3">
+              <el-radio value="existing">{{ t('submit.use_existing_model') }}</el-radio>
+              <el-radio value="new">{{ t('submit.request_new_model') }}</el-radio>
+            </el-radio-group>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <template v-if="row.mode === 'existing'">
+                <el-form-item :label="t('submit.select_model')">
+                  <el-select v-model="row.standard_model_id" class="w-full" filterable>
+                    <el-option v-for="m in models" :key="m.id" :label="m.name + (m.vendor ? ' (' + m.vendor + ')' : '')" :value="m.id" />
+                  </el-select>
+                </el-form-item>
+              </template>
+              <template v-else>
+                <el-form-item :label="t('submit.new_model_name')">
+                  <el-input v-model="row.new_model_name" :placeholder="t('submit.new_model_name_placeholder')" />
+                </el-form-item>
+                <el-form-item :label="t('submit.new_model_vendor')">
+                  <el-input v-model="row.new_model_vendor" :placeholder="t('submit.new_model_vendor_placeholder')" />
+                </el-form-item>
+              </template>
+            </div>
+
+            <el-form-item :label="t('submit.provider_model_name')">
+              <el-input v-model="row.provider_model_name" :placeholder="t('submit.provider_model_name_placeholder')" />
+            </el-form-item>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <el-form-item :label="t('submit.price_in')">
+                <el-input-number v-model="row.price_in" :min="0" :step="0.0001" controls-position="right" class="w-full" />
+              </el-form-item>
+              <el-form-item :label="t('submit.price_out')">
+                <el-input-number v-model="row.price_out" :min="0" :step="0.0001" controls-position="right" class="w-full" />
+              </el-form-item>
+              <el-form-item :label="t('submit.cache_hit_input')">
+                <el-input-number v-model="row.cache_hit_input_price" :min="0" :step="0.0001" controls-position="right" class="w-full" />
+              </el-form-item>
+              <el-form-item :label="t('submit.cache_hit_output')">
+                <el-input-number v-model="row.cache_hit_output_price" :min="0" :step="0.0001" controls-position="right" class="w-full" />
+              </el-form-item>
+            </div>
+
+            <el-form-item :label="t('submit.currency')">
+              <el-select v-model="row.currency" class="w-full" filterable>
+                <el-option v-for="opt in currencyOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
             </el-form-item>
-          </template>
-          
-          <template v-else>
-            <el-form-item :label="t('submit.new_model_name')">
-              <el-input v-model="form.new_model_name" placeholder="e.g. claude-3.5-sonnet" />
+
+            <el-form-item :label="t('submit.proof_type')">
+              <el-radio-group v-model="row.proof_type">
+                <el-radio value="text">{{ t('submit.proof_text') }}</el-radio>
+                <el-radio value="url">{{ t('submit.proof_url') }}</el-radio>
+              </el-radio-group>
             </el-form-item>
-            <el-form-item :label="t('submit.model_vendor')">
-              <el-input v-model="form.new_model_vendor" placeholder="e.g. Anthropic" />
-            </el-form-item>
-            <el-alert type="info" :closable="false" class="mb-4">
-              {{ t('submit.new_model_notice') }}
-            </el-alert>
-          </template>
-          
-          <el-form-item :label="t('submit.provider_model_name')">
-            <el-input v-model="form.provider_model_name" :placeholder="t('submit.provider_model_name_placeholder')" />
-            <span class="text-xs text-gray-500">{{ t('submit.provider_model_name_hint') }}</span>
-          </el-form-item>
-        </div>
-        
-        <!-- Price Section -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold mb-4 border-b pb-2">{{ t('submit.price_section') }}</h3>
-          
-          <div class="grid grid-cols-2 gap-4">
-            <el-form-item :label="t('submit.input_price')">
-              <el-input-number v-model="form.price_in" :precision="6" :step="0.01" class="w-full" />
-            </el-form-item>
-            <el-form-item :label="t('submit.output_price')">
-              <el-input-number v-model="form.price_out" :precision="6" :step="0.01" class="w-full" />
+            <el-form-item>
+              <el-input
+                v-model="row.proof_content"
+                :type="row.proof_type === 'text' ? 'textarea' : 'text'"
+                :placeholder="row.proof_type === 'url' ? 'https://example.com/proof' : t('submit.proof_description')"
+              />
             </el-form-item>
           </div>
-
-          <el-form-item :label="t('submit.currency')">
-            <el-select v-model="form.currency">
-              <el-option label="USD" value="USD" />
-              <el-option label="CNY" value="CNY" />
-              <el-option label="EUR" value="EUR" />
-            </el-select>
-          </el-form-item>
-        </div>
-        
-        <!-- Proof Section -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold mb-4 border-b pb-2">{{ t('submit.proof_section') }}</h3>
-          
-          <el-form-item :label="t('submit.proof_type')">
-            <el-radio-group v-model="form.proof_type">
-              <el-radio value="text">{{ t('submit.proof_text') }}</el-radio>
-              <el-radio value="url">{{ t('submit.proof_url') }}</el-radio>
-              <el-radio value="image">{{ t('submit.proof_image') }}</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          
-          <el-form-item v-if="form.proof_type === 'text'">
-            <el-input v-model="form.proof_content" type="textarea" :rows="3" :placeholder="t('submit.proof_description')" />
-          </el-form-item>
-          
-          <el-form-item v-else-if="form.proof_type === 'url'">
-            <el-input v-model="form.proof_content" placeholder="https://docs.example.com/pricing" />
-          </el-form-item>
-          
-          <el-form-item v-else>
-            <el-upload
-              class="upload-demo"
-              action="#"
-              :auto-upload="false"
-              :limit="1"
-              :on-change="handleFileChange"
-            >
-              <el-button type="primary">{{ t('submit.select_image') }}</el-button>
-            </el-upload>
-          </el-form-item>
         </div>
 
-        <el-button type="primary" size="large" class="w-full" @click="submit" :loading="loading">
-          {{ t('submit.submit_btn') }}
-        </el-button>
+        <el-form-item class="mt-6">
+          <el-button type="primary" :loading="loading" @click="submit">{{ t('submit.submit_btn') }}</el-button>
+          <el-button @click="router.back()">{{ t('submit.cancel_btn') }}</el-button>
+        </el-form-item>
       </el-form>
     </el-card>
   </div>

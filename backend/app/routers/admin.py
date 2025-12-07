@@ -24,6 +24,16 @@ class ApproveModelRequestData(BaseModel):
     vendor: Optional[str] = None
 
 
+class StandardModelIn(BaseModel):
+    name: str
+    vendor: Optional[str] = None
+    official_currency: Optional[str] = "USD"
+    official_input_price: Optional[float] = None
+    official_output_price: Optional[float] = None
+    is_featured: Optional[bool] = False
+    rank_hint: Optional[int] = None
+
+
 @router.get("/pending")
 async def get_pending_prices(
     session: Session = Depends(get_session),
@@ -85,6 +95,126 @@ async def reject_price(
     price.status = PriceStatus.rejected
     session.commit()
     return {"message": "Price rejected"}
+
+
+# ============ Standard Models Management ============
+
+
+@router.get("/models")
+async def admin_list_models(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    models = session.exec(select(StandardModel)).all()
+    return models
+
+
+@router.post("/models")
+async def admin_create_model(
+    model_in: StandardModelIn,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    model = StandardModel(**model_in.dict())
+    session.add(model)
+    session.commit()
+    session.refresh(model)
+    return model
+
+
+@router.put("/models/{model_id}")
+async def admin_update_model(
+    model_id: int,
+    model_in: StandardModelIn,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    model = session.get(StandardModel, model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    for k, v in model_in.dict().items():
+        setattr(model, k, v)
+
+    session.add(model)
+    session.commit()
+    session.refresh(model)
+    return model
+
+
+@router.delete("/models/{model_id}")
+async def admin_delete_model(
+    model_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    model = session.get(StandardModel, model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    session.delete(model)
+    session.commit()
+    return {"message": "Model deleted"}
+
+
+# ============ Standard Model Requests ============
+
+
+@router.get("/model-requests/pending")
+async def list_model_requests(
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    requests = session.exec(
+        select(StandardModelRequest).where(StandardModelRequest.status == "pending")
+    ).all()
+    return requests
+
+
+@router.post("/model-requests/{request_id}/approve")
+async def approve_model_request(
+    request_id: int,
+    payload: ApproveModelRequestData,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    req = session.get(StandardModelRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    req.status = "approved"
+
+    name = payload.name or req.requested_name
+    vendor = payload.vendor or req.vendor
+
+    existing = session.exec(select(StandardModel).where(StandardModel.name == name)).first()
+    if existing:
+        model = existing
+        if vendor:
+            model.vendor = vendor
+    else:
+        model = StandardModel(name=name, vendor=vendor)
+        session.add(model)
+
+    session.add(req)
+    session.commit()
+    session.refresh(model)
+    return {"message": "Request approved", "model_id": model.id}
+
+
+@router.post("/model-requests/{request_id}/reject")
+async def reject_model_request(
+    request_id: int,
+    notes: Optional[str] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    req = session.get(StandardModelRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    req.status = "rejected"
+    req.admin_notes = notes
+    session.add(req)
+    session.commit()
+    return {"message": "Request rejected"}
 
 
 # ============ Provider Review ============
@@ -284,9 +414,12 @@ async def update_settings(
     current_user: User = Depends(get_current_super_admin),
 ):
     needs_reschedule = False
+    needs_rate_refresh = False
     for key, value in settings.items():
         if key == "exchange_rate_interval_minutes":
             needs_reschedule = True
+        if key in {"exchange_rate_url", "exchange_rate_key", "exchange_rate_provider"}:
+            needs_rate_refresh = True
 
         if key == "home_display_mode":
             allowed_modes = {"table", "cards", "chart"}
@@ -305,5 +438,14 @@ async def update_settings(
         from app.services.scheduler import reschedule_exchange_job
 
         reschedule_exchange_job()
+
+    if needs_rate_refresh:
+        try:
+            from app.services.scheduler import update_exchange_rates
+
+            update_exchange_rates()
+        except Exception:
+            # Keep request successful even if refresh fails; logs already captured inside updater
+            pass
 
     return {"message": "Settings updated"}

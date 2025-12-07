@@ -9,6 +9,8 @@ interface PriceRow {
   original_currency: string
   price_in: number
   price_out: number
+  cache_hit_input_price?: number | null
+  cache_hit_output_price?: number | null
   verified_at: string
   proof: string
 }
@@ -56,6 +58,20 @@ const formatPrice = (val: number) => {
     <el-table-column :label="t('table.output')" min-width="150" sortable prop="price_out">
       <template #default="{ row }">
         <span class="font-mono">{{ formatPrice(row.price_out) }}</span>
+      </template>
+    </el-table-column>
+
+    <el-table-column :label="t('table.cache_hit_input')" min-width="160">
+      <template #default="{ row }">
+        <span class="font-mono" v-if="row.cache_hit_input_price != null">{{ formatPrice(row.cache_hit_input_price) }}</span>
+        <span v-else class="text-gray-400">{{ t('home.no_data') }}</span>
+      </template>
+    </el-table-column>
+
+    <el-table-column :label="t('table.cache_hit_output')" min-width="160">
+      <template #default="{ row }">
+        <span class="font-mono" v-if="row.cache_hit_output_price != null">{{ formatPrice(row.cache_hit_output_price) }}</span>
+        <span v-else class="text-gray-400">{{ t('home.no_data') }}</span>
       </template>
     </el-table-column>
 

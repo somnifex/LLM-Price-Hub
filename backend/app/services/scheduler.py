@@ -165,6 +165,7 @@ def check_uptime():
 
 
 # Schedule Jobs
+# Default schedule; can be rescheduled via admin settings
 scheduler.add_job(update_exchange_rates, "interval", hours=4, id="exchange_rates")
 scheduler.add_job(expire_old_prices, "cron", hour=0)  # Daily
 scheduler.add_job(check_uptime, "interval", minutes=30)

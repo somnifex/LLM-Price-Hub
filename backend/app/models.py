@@ -57,6 +57,18 @@ class StandardModel(SQLModel, table=True):
     name: str = Field(max_length=50)
     vendor: Optional[str] = Field(default=None, max_length=50)
 
+    # Official reference pricing for the model (used for default highlights)
+    official_currency: str = Field(default="USD", max_length=10)
+    official_input_price: Optional[float] = Field(default=None)
+    official_output_price: Optional[float] = Field(default=None)
+
+    # Home page ordering and featuring
+    is_featured: bool = Field(default=False)
+    rank_hint: Optional[int] = Field(default=None, index=True)
+
+    # Aggregated counters (optional future use)
+    popularity_score: int = Field(default=0, index=True)
+
     prices: list["ModelPrice"] = Relationship(back_populates="standard_model")
 
 
@@ -127,6 +139,10 @@ class ModelPrice(SQLModel, table=True):
     currency: str = Field(default="USD", max_length=10)
     input_price: float
     output_price: float
+
+    # Cache-hit pricing (additional fields requested)
+    cache_hit_input_price: Optional[float] = Field(default=None)
+    cache_hit_output_price: Optional[float] = Field(default=None)
 
     # Flexible proof (image, text, or URL)
     proof_type: Optional[str] = Field(

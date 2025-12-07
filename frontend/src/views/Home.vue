@@ -15,16 +15,14 @@ const selectedModel = ref<number | null>(null)
 const targetCurrency = ref('USD')
 const prices = ref<Array<any>>([])
 const loading = ref(false)
+const highlights = ref<Array<any>>([])
+const highlightsLoading = ref(false)
 const allowedModes = ['table', 'cards', 'chart'] as const
 const displayMode = ref<typeof allowedModes[number]>('table')
 const publicSettings = ref<Record<string, string>>({})
 
-const currencies = computed(() => {
-  if (settingsStore.userSettings.preferred_currencies.length > 0) {
-    return settingsStore.userSettings.preferred_currencies
-  }
-  return ['USD', 'CNY', 'EUR']
-})
+const currencies = computed(() => settingsStore.availableCurrencies)
+const commonCurrencies = computed(() => settingsStore.availableCurrencies.filter(c => c.is_common))
 
 const currentViewComponent = computed(() => {
   switch (displayMode.value) {
@@ -40,6 +38,24 @@ const fetchModels = async () => {
     models.value = res.data
   } catch {
     // Silent fail - models will be empty
+  }
+}
+
+const fetchHighlights = async () => {
+  highlightsLoading.value = true
+  try {
+    const res = await api.get('/prices/highlights', {
+      params: { target_currency: targetCurrency.value }
+    })
+    highlights.value = res.data
+    if (!selectedModel.value && res.data?.length) {
+      selectedModel.value = res.data[0].id
+      fetchPrices()
+    }
+  } catch {
+    // ignore
+  } finally {
+    highlightsLoading.value = false
   }
 }
 
@@ -86,10 +102,16 @@ onMounted(async () => {
 
   fetchModels()
   fetchPublicSettings()
+  fetchHighlights()
 })
 
 watch(displayMode, (val) => {
   localStorage.setItem('homeDisplayMode', val)
+})
+
+watch(targetCurrency, () => {
+  fetchPrices()
+  fetchHighlights()
 })
 </script>
 
@@ -133,10 +155,22 @@ watch(displayMode, (val) => {
             </el-select>
           </div>
           
-          <div class="w-full md:w-48 border-t md:border-t-0 md:border-l border-gray-100">
-             <el-select v-model="targetCurrency" size="large" class="w-full custom-select-hero" @change="fetchPrices">
-              <el-option v-for="curr in currencies" :key="curr" :label="t('currency.' + curr)" :value="curr" />
+          <div class="w-full md:w-52 border-t md:border-t-0 md:border-l border-gray-100">
+             <el-select v-model="targetCurrency" size="large" class="w-full custom-select-hero" @change="fetchPrices" filterable>
+              <el-option v-for="curr in currencies" :key="curr.code" :label="(curr.flag ? curr.flag + ' ' : '') + t('currency.' + curr.code, curr.code)" :value="curr.code" />
             </el-select>
+            <div class="flex gap-2 mt-2 flex-wrap">
+              <el-tag
+                v-for="curr in commonCurrencies"
+                :key="curr.code"
+                size="small"
+                :type="curr.code === targetCurrency ? 'primary' : 'info'"
+                class="cursor-pointer"
+                @click="targetCurrency = curr.code"
+              >
+                {{ (curr.flag ? curr.flag + ' ' : '') + curr.code }}
+              </el-tag>
+            </div>
           </div>
         </div>
       </div>
@@ -144,6 +178,35 @@ watch(displayMode, (val) => {
 
     <!-- Content Section -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <!-- Highlights -->
+      <div class="mb-10" v-loading="highlightsLoading">
+        <h3 class="text-xl font-semibold mb-4">{{ t('home.highlights') }}</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <el-card v-for="item in highlights" :key="item.id" class="cursor-pointer" @click="selectedModel = item.id; fetchPrices()">
+            <div class="flex items-center justify-between mb-2">
+              <div>
+                <div class="text-lg font-bold">{{ item.name }}</div>
+                <div class="text-xs text-gray-500" v-if="item.vendor">{{ item.vendor }}</div>
+              </div>
+              <el-tag type="success" v-if="item.lowest">{{ t('home.lowest_label') }}: {{ item.lowest.provider_name }}</el-tag>
+            </div>
+            <div class="grid grid-cols-2 gap-3 text-sm font-mono">
+              <div>
+                <div class="text-gray-500">{{ t('home.official_price') }}</div>
+                <div class="font-semibold">{{ item.official_price_in ? item.official_price_in.toFixed(4) : t('home.no_data') }}</div>
+              </div>
+              <div>
+                <div class="text-gray-500">{{ t('home.platform_avg') }}</div>
+                <div class="font-semibold">{{ item.platform_avg_in ? item.platform_avg_in.toFixed(4) : t('home.no_data') }}</div>
+              </div>
+            </div>
+            <div class="text-xs text-gray-500 mt-2" v-if="item.lowest">
+              {{ t('home.lowest_price') }} {{ item.lowest.price_in.toFixed(4) }} {{ targetCurrency }}
+            </div>
+          </el-card>
+        </div>
+      </div>
+
       <!-- View Toggles -->
       <div class="flex justify-end mb-6">
         <div class="bg-gray-100 p-1 rounded-lg flex gap-1">

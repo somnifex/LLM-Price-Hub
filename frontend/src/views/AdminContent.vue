@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
 
@@ -16,9 +16,59 @@ const models = ref([])
 const pricesLoading = ref(false)
 const providersLoading = ref(false)
 const modelsLoading = ref(false)
+const modelListLoading = ref(false)
+const currenciesLoading = ref(false)
+const modelSaving = ref(false)
+const editSaving = ref(false)
 
 // Active tab
 const activeTab = ref('prices')
+
+// Currencies for official price entries
+const currencies = ref([])
+const currencyOptions = computed(() => {
+    if (!currencies.value.length) {
+        return [{ label: 'USD', value: 'USD' }]
+    }
+    return currencies.value.map((c: any) => ({ label: c.code, value: c.code }))
+})
+
+// Standard model form state
+const modelFormDefaults = {
+    name: '',
+    vendor: '',
+    official_currency: 'USD',
+    official_input_price: null as number | null,
+    official_output_price: null as number | null,
+    is_featured: false,
+    rank_hint: null as number | null,
+}
+
+const newModel = ref({ ...modelFormDefaults })
+const editingModel = ref<any | null>(null)
+const editDialogVisible = ref(false)
+
+const resetNewModel = () => {
+    newModel.value = { ...modelFormDefaults }
+}
+
+const normalizeModelPayload = (payload: any) => {
+    const toNumberOrNull = (value: any) => {
+        if (value === '' || value === null || value === undefined) return null
+        const num = Number(value)
+        return Number.isNaN(num) ? null : num
+    }
+
+    return {
+        name: payload.name?.trim(),
+        vendor: payload.vendor?.trim() || null,
+        official_currency: payload.official_currency || 'USD',
+        official_input_price: toNumberOrNull(payload.official_input_price),
+        official_output_price: toNumberOrNull(payload.official_output_price),
+        is_featured: Boolean(payload.is_featured),
+        rank_hint: toNumberOrNull(payload.rank_hint),
+    }
+}
 
 // Fetch functions
 const fetchPendingPrices = async () => {
@@ -48,7 +98,7 @@ const fetchPendingProviders = async () => {
 const fetchPendingModels = async () => {
   modelsLoading.value = true
   try {
-    const res = await api.get('/admin/models/pending')
+    const res = await api.get('/admin/model-requests/pending')
     pendingModels.value = res.data
   } catch (e) {
     ElMessage.error(t('admin.failed_fetch_models'))
@@ -57,12 +107,27 @@ const fetchPendingModels = async () => {
   }
 }
 
+const fetchCurrencies = async () => {
+    currenciesLoading.value = true
+    try {
+        const res = await api.get('/settings/currencies')
+        currencies.value = res.data
+    } catch (e) {
+        // allow page to load even if currencies fail
+    } finally {
+        currenciesLoading.value = false
+    }
+}
+
 const fetchModels = async () => {
+  modelListLoading.value = true
   try {
-    const res = await api.get('/models')
+    const res = await api.get('/admin/models')
     models.value = res.data
   } catch {
     // Silent fail
+  } finally {
+    modelListLoading.value = false
   }
 }
 
@@ -89,7 +154,9 @@ const handleProviderAction = async (id: number, action: 'approve' | 'reject') =>
 
 const handleModelAction = async (id: number, action: 'approve' | 'reject') => {
   try {
-    await api.post(`/admin/models/${id}/${action}`)
+    const path = action === 'approve' ? `/admin/model-requests/${id}/approve` : `/admin/model-requests/${id}/reject`
+    const body = action === 'approve' ? {} : undefined
+    await api.post(path, body)
     ElMessage.success(action === 'approve' ? t('admin.model_approved') : t('admin.model_rejected'))
     fetchPendingModels()
     fetchModels()
@@ -99,17 +166,58 @@ const handleModelAction = async (id: number, action: 'approve' | 'reject') => {
 }
 
 // Model Management
-const newModel = ref({ name: '', vendor: '' })
 const createModel = async () => {
   if(!newModel.value.name) return
+  modelSaving.value = true
   try {
-    await api.post('/models', newModel.value)
+    const payload = normalizeModelPayload(newModel.value)
+    await api.post('/admin/models', payload)
     ElMessage.success(t('admin.model_created'))
-    newModel.value = { name: '', vendor: '' }
+    resetNewModel()
     fetchModels()
   } catch (e) {
     ElMessage.error(t('admin.failed_create_model'))
+  } finally {
+    modelSaving.value = false
   }
+}
+
+const openEditModel = (model: any) => {
+    editingModel.value = { ...model }
+    editDialogVisible.value = true
+}
+
+const saveModelEdit = async () => {
+    if (!editingModel.value) return
+    editSaving.value = true
+    try {
+        const payload = normalizeModelPayload(editingModel.value)
+        await api.put(`/admin/models/${editingModel.value.id}`, payload)
+        ElMessage.success(t('admin.model_updated'))
+        editDialogVisible.value = false
+        fetchModels()
+    } catch (e) {
+        ElMessage.error(t('admin.action_failed'))
+    } finally {
+        editSaving.value = false
+    }
+}
+
+const deleteModel = async (modelId: number) => {
+    try {
+        await ElMessageBox.confirm(
+            t('admin.confirm_delete_model'),
+            t('common.warning'),
+            { type: 'warning' }
+        )
+        await api.delete(`/admin/models/${modelId}`)
+        ElMessage.success(t('admin.model_deleted'))
+        fetchModels()
+    } catch (e: any) {
+        if (e !== 'cancel') {
+            ElMessage.error(t('admin.action_failed'))
+        }
+    }
 }
 
 onMounted(() => {
@@ -117,6 +225,7 @@ onMounted(() => {
   fetchPendingProviders()
   fetchPendingModels()
   fetchModels()
+  fetchCurrencies()
 })
 </script>
 
@@ -231,24 +340,121 @@ onMounted(() => {
       
       <!-- Standard Models Management Tab -->
       <el-tab-pane :label="t('admin.manage_models')" name="manage-models">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <el-card>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <el-card class="lg:col-span-1">
             <template #header>{{ t('admin.add_new_model') }}</template>
-            <div class="flex gap-2">
-              <el-input v-model="newModel.name" :placeholder="t('admin.model_name_placeholder')" />
-              <el-input v-model="newModel.vendor" :placeholder="t('admin.vendor_placeholder')" />
-              <el-button type="primary" @click="createModel">{{ t('admin.add') }}</el-button>
-            </div>
+            <el-form label-position="top" @submit.prevent>
+              <el-form-item :label="t('admin.name')">
+                <el-input v-model="newModel.name" :placeholder="t('admin.model_name_placeholder')" />
+              </el-form-item>
+              <el-form-item :label="t('admin.vendor')">
+                <el-input v-model="newModel.vendor" :placeholder="t('admin.vendor_placeholder')" />
+              </el-form-item>
+              <el-form-item :label="t('admin.official_currency')">
+                <el-select v-model="newModel.official_currency" filterable :loading="currenciesLoading">
+                  <el-option v-for="opt in currencyOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                </el-select>
+              </el-form-item>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <el-form-item :label="t('admin.official_input_price')">
+                  <el-input v-model="newModel.official_input_price" type="number" />
+                </el-form-item>
+                <el-form-item :label="t('admin.official_output_price')">
+                  <el-input v-model="newModel.official_output_price" type="number" />
+                </el-form-item>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <el-form-item :label="t('admin.is_featured')">
+                  <el-switch v-model="newModel.is_featured" />
+                </el-form-item>
+                <el-form-item :label="t('admin.rank_hint')">
+                  <el-input v-model="newModel.rank_hint" type="number" />
+                </el-form-item>
+              </div>
+              <el-alert type="info" :closable="false" class="mb-2">{{ t('admin.featured_hint') }}</el-alert>
+              <div class="flex gap-2">
+                <el-button type="primary" :loading="modelSaving" :disabled="!newModel.name" @click="createModel">{{ t('admin.add') }}</el-button>
+                <el-button @click="resetNewModel">{{ t('common.cancel') }}</el-button>
+              </div>
+            </el-form>
           </el-card>
           
-          <el-card>
+          <el-card class="lg:col-span-2">
             <template #header>{{ t('admin.all_standard_models') }}</template>
-            <el-table :data="models" height="300">
-              <el-table-column prop="name" :label="t('admin.name')" />
-              <el-table-column prop="vendor" :label="t('admin.vendor')" />
+            <el-table :data="models" height="420" v-loading="modelListLoading">
+              <el-table-column prop="name" :label="t('admin.name')" min-width="140" />
+              <el-table-column prop="vendor" :label="t('admin.vendor')" min-width="120" />
+              <el-table-column :label="t('home.official_price')" min-width="180">
+                <template #default="{ row }">
+                  <div class="text-xs leading-5">
+                    <div v-if="row.official_input_price !== null && row.official_input_price !== undefined">
+                      {{ t('table.input') }}: {{ row.official_input_price }} {{ row.official_currency }}
+                    </div>
+                    <div v-if="row.official_output_price !== null && row.official_output_price !== undefined">
+                      {{ t('table.output') }}: {{ row.official_output_price }} {{ row.official_currency }}
+                    </div>
+                    <div v-if="row.official_input_price === null && row.official_output_price === null" class="text-gray-400">{{ t('home.no_data') }}</div>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.is_featured')" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.is_featured" type="success">{{ t('admin.is_featured') }}</el-tag>
+                  <span v-else class="text-gray-400">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="rank_hint" :label="t('admin.rank_hint')" width="120">
+                <template #default="{ row }">
+                  {{ row.rank_hint ?? '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.actions')" width="170" fixed="right">
+                <template #default="{ row }">
+                  <div class="flex gap-2">
+                    <el-button size="small" @click="openEditModel(row)">{{ t('common.edit') }}</el-button>
+                    <el-button size="small" type="danger" @click="deleteModel(row.id)">{{ t('common.delete') }}</el-button>
+                  </div>
+                </template>
+              </el-table-column>
             </el-table>
           </el-card>
         </div>
+
+        <el-dialog v-model="editDialogVisible" :title="t('admin.edit_model')" width="520px">
+          <el-form label-position="top" v-if="editingModel">
+            <el-form-item :label="t('admin.name')">
+              <el-input v-model="editingModel.name" />
+            </el-form-item>
+            <el-form-item :label="t('admin.vendor')">
+              <el-input v-model="editingModel.vendor" />
+            </el-form-item>
+            <el-form-item :label="t('admin.official_currency')">
+              <el-select v-model="editingModel.official_currency" filterable :loading="currenciesLoading">
+                <el-option v-for="opt in currencyOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+            </el-form-item>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <el-form-item :label="t('admin.official_input_price')">
+                <el-input v-model="editingModel.official_input_price" type="number" />
+              </el-form-item>
+              <el-form-item :label="t('admin.official_output_price')">
+                <el-input v-model="editingModel.official_output_price" type="number" />
+              </el-form-item>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <el-form-item :label="t('admin.is_featured')">
+                <el-switch v-model="editingModel.is_featured" />
+              </el-form-item>
+              <el-form-item :label="t('admin.rank_hint')">
+                <el-input v-model="editingModel.rank_hint" type="number" />
+              </el-form-item>
+            </div>
+          </el-form>
+          <template #footer>
+            <el-button @click="editDialogVisible = false">{{ t('common.cancel') }}</el-button>
+            <el-button type="primary" :loading="editSaving" @click="saveModelEdit">{{ t('admin.update') }}</el-button>
+          </template>
+        </el-dialog>
       </el-tab-pane>
     </el-tabs>
   </div>

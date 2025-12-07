@@ -31,7 +31,13 @@ app.include_router(settings.router)
 @app.on_event("startup")
 def on_startup():
     init_db()
-    from app.services.scheduler import scheduler
+    from app.services.scheduler import scheduler, update_exchange_rates
+
+    # Kick off an immediate currency sync so rates are available right after boot
+    try:
+        update_exchange_rates()
+    except Exception:
+        pass
 
     scheduler.start()
 

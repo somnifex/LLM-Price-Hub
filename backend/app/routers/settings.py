@@ -10,11 +10,42 @@ import json
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
+# Basic ISO currency -> emoji flag helper (fallback to empty string)
+_FLAG_MAP = {
+    "USD": "🇺🇸",
+    "EUR": "🇪🇺",
+    "CNY": "🇨🇳",
+    "JPY": "🇯🇵",
+    "GBP": "🇬🇧",
+    "KRW": "🇰🇷",
+    "AUD": "🇦🇺",
+    "CAD": "🇨🇦",
+    "CHF": "🇨🇭",
+    "SGD": "🇸🇬",
+    "HKD": "🇭🇰",
+    "INR": "🇮🇳",
+}
+
+
+def _currency_flag(code: str) -> str:
+    return _FLAG_MAP.get(code.upper(), "")
+
+
 @router.get("/currencies")
 async def get_currencies(session: Session = Depends(get_session)):
     """Get all available currencies and their rates."""
     currencies = session.exec(select(CurrencyRate)).all()
-    return currencies
+    common_codes = {"USD", "CNY", "EUR"}
+    return [
+        {
+            "code": c.code,
+            "rate_to_usd": c.rate_to_usd,
+            "updated_at": c.updated_at,
+            "is_common": c.code in common_codes,
+            "flag": _currency_flag(c.code),
+        }
+        for c in currencies
+    ]
 
 
 @router.get("/user")

@@ -11,6 +11,8 @@ type PriceRow = {
   original_currency: string
   price_in: number
   price_out: number
+  cache_hit_input_price?: number | null
+  cache_hit_output_price?: number | null
   verified_at?: string | null
   proof?: string | null
 }
@@ -46,6 +48,14 @@ const sorted = computed(() => [...props.prices].sort((a, b) => a.price_in - b.pr
           <div class="flex justify-between text-sm">
             <span>{{ t('table.output') }}</span>
             <span>{{ (row.price_out || 0).toFixed(6) }}</span>
+          </div>
+          <div class="flex justify-between text-sm" v-if="row.cache_hit_input_price != null">
+            <span>{{ t('table.cache_hit_input') }}</span>
+            <span>{{ (row.cache_hit_input_price || 0).toFixed(6) }}</span>
+          </div>
+          <div class="flex justify-between text-sm" v-if="row.cache_hit_output_price != null">
+            <span>{{ t('table.cache_hit_output') }}</span>
+            <span>{{ (row.cache_hit_output_price || 0).toFixed(6) }}</span>
           </div>
           <div class="flex justify-between text-xs text-gray-500">
             <span>{{ t('table.verified') }}</span>
