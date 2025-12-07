@@ -21,3 +21,22 @@ docker-compose up -d
 ## 目录结构
 - `backend/`: FastAPI 后端代码
 - `frontend/`: Vue 3 前端代码
+- `.githooks/`: Git hooks for code quality checks
+
+## 开发工具
+
+### Git Hooks
+
+项目包含了用于检测未提交更改的 Git hooks。要启用这些 hooks，请运行：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+您也可以手动检查未提交的更改：
+
+```bash
+./check-uncommitted-changes.sh
+```
+
+更多信息请查看 [.githooks/README.md](.githooks/README.md)。
