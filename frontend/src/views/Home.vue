@@ -6,17 +6,25 @@ import PriceTable from '@/components/PriceTable.vue'
 import PriceCards from '@/components/PriceCards.vue'
 import PriceChart from '@/components/PriceChart.vue'
 import { Search, List, Grid, TrendCharts } from '@element-plus/icons-vue'
+import { useSettingsStore } from '@/stores/settings'
 
 const { t } = useI18n()
+const settingsStore = useSettingsStore()
 const models = ref<Array<{id: number, name: string, vendor: string}>>([])
 const selectedModel = ref<number | null>(null)
 const targetCurrency = ref('USD')
-const currencies = ref(['USD', 'CNY', 'EUR'])
 const prices = ref<Array<any>>([])
 const loading = ref(false)
 const allowedModes = ['table', 'cards', 'chart'] as const
 const displayMode = ref<typeof allowedModes[number]>('table')
 const publicSettings = ref<Record<string, string>>({})
+
+const currencies = computed(() => {
+  if (settingsStore.userSettings.preferred_currencies.length > 0) {
+    return settingsStore.userSettings.preferred_currencies
+  }
+  return ['USD', 'CNY', 'EUR']
+})
 
 const currentViewComponent = computed(() => {
   switch (displayMode.value) {
@@ -66,11 +74,16 @@ const fetchPrices = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   const saved = localStorage.getItem('homeDisplayMode')
   if (saved && allowedModes.includes(saved as typeof allowedModes[number])) {
     displayMode.value = saved as typeof allowedModes[number]
   }
+  
+  await settingsStore.fetchCurrencies()
+  await settingsStore.fetchUserSettings()
+  targetCurrency.value = settingsStore.userSettings.default_currency
+
   fetchModels()
   fetchPublicSettings()
 })

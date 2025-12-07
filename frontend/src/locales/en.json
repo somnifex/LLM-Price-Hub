@@ -9,6 +9,14 @@
         "api_keys": "API Keys",
         "settings": "Settings"
     },
+    "settings": {
+        "general_tab": "General",
+        "preferred_currencies": "Preferred Currencies",
+        "default_currency": "Default Currency",
+        "save": "Save Settings",
+        "saved": "Settings saved successfully",
+        "save_failed": "Failed to save settings"
+    },
     "currency": {
         "USD": "USD",
         "CNY": "CNY",

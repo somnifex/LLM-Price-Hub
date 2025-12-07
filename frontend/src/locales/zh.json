@@ -9,6 +9,14 @@
         "api_keys": "API 密钥",
         "settings": "设置"
     },
+    "settings": {
+        "general_tab": "通用",
+        "preferred_currencies": "首选货币",
+        "default_currency": "默认货币",
+        "save": "保存设置",
+        "saved": "设置保存成功",
+        "save_failed": "保存设置失败"
+    },
     "currency": {
         "USD": "美元 (USD)",
         "CNY": "人民币 (CNY)",

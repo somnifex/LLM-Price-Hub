@@ -172,6 +172,10 @@ class UserSettings(SQLModel, table=True):
     totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
     totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
 
+    # General Settings
+    preferred_currencies: Optional[str] = Field(default='["USD"]', max_length=1000)  # JSON list of codes
+    default_currency: str = Field(default="USD", max_length=10)
+
     user: Optional[User] = Relationship(back_populates="settings")
 
 

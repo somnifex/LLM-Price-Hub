@@ -9,6 +9,14 @@
         "api_keys": "مفاتيح API",
         "settings": "الإعدادات"
     },
+    "settings": {
+        "general_tab": "عام",
+        "preferred_currencies": "العملات المفضلة",
+        "default_currency": "العملة الافتراضية",
+        "save": "حفظ الإعدادات",
+        "saved": "تم حفظ الإعدادات بنجاح",
+        "save_failed": "فشل حفظ الإعدادات"
+    },
     "currency": {
         "USD": "دولار (USD)",
         "CNY": "يوان (CNY)",

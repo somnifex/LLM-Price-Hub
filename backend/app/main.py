@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import init_db
-from app.routers import prices, models, config, admin, auth, user_keys
+from app.routers import prices, models, config, admin, auth, user_keys, settings
 
 app = FastAPI(title="LLM Price Hub", version="0.0.1")
 
@@ -25,6 +25,7 @@ app.include_router(config.router)
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(user_keys.router)
+app.include_router(settings.router)
 
 
 @app.on_event("startup")

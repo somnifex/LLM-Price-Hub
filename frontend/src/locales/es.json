@@ -9,6 +9,14 @@
         "api_keys": "Claves API",
         "settings": "Configuración"
     },
+    "settings": {
+        "general_tab": "General",
+        "preferred_currencies": "Monedas preferidas",
+        "default_currency": "Moneda predeterminada",
+        "save": "Guardar configuración",
+        "saved": "Configuración guardada exitosamente",
+        "save_failed": "Error al guardar la configuración"
+    },
     "currency": {
         "USD": "Dólar (USD)",
         "CNY": "Yuan (CNY)",

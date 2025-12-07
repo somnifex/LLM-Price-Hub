@@ -9,6 +9,14 @@
         "api_keys": "API ключи",
         "settings": "Настройки"
     },
+    "settings": {
+        "general_tab": "Общие",
+        "preferred_currencies": "Предпочитаемые валюты",
+        "default_currency": "Валюта по умолчанию",
+        "save": "Сохранить настройки",
+        "saved": "Настройки успешно сохранены",
+        "save_failed": "Не удалось сохранить настройки"
+    },
     "currency": {
         "USD": "Доллар (USD)",
         "CNY": "Юань (CNY)",

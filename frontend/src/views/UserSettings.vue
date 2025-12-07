@@ -6,13 +6,20 @@ import { CopyDocument, View, Hide } from '@element-plus/icons-vue'
 import api from '@/api'
 import { encrypt, decrypt, generateSalt, verifyPassword } from '@/utils/e2ee'
 import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
 // @ts-ignore
 import QRCode from 'qrcode'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 
-const activeTab = ref('security')
+const activeTab = ref('general')
+
+// General Settings State
+const preferredCurrencies = ref<string[]>([])
+const defaultCurrency = ref('USD')
+const settingsLoading = ref(false)
 
 // TOTP State
 const totpEnabled = ref(false)
@@ -65,6 +72,26 @@ const showEditProviderDialog = ref(false)
 const loading = ref(false)
 const keysLoading = ref(false)
 const providersLoading = ref(false)
+
+// General Settings Functions
+async function loadGeneralSettings() {
+  await settingsStore.fetchCurrencies()
+  await settingsStore.fetchUserSettings()
+  preferredCurrencies.value = settingsStore.userSettings.preferred_currencies
+  defaultCurrency.value = settingsStore.userSettings.default_currency
+}
+
+async function saveGeneralSettings() {
+  settingsLoading.value = true
+  try {
+    await settingsStore.updateUserSettings(preferredCurrencies.value, defaultCurrency.value)
+    ElMessage.success(t('settings.saved'))
+  } catch {
+    ElMessage.error(t('settings.save_failed'))
+  } finally {
+    settingsLoading.value = false
+  }
+}
 
 // Utility: Copy to clipboard
 async function copyToClipboard(text: string, label: string) {
@@ -423,6 +450,7 @@ function getStatusTag(status: string) {
 }
 
 onMounted(async () => {
+  await loadGeneralSettings()
   await loadTotpStatus()
   await loadSettings()
   await loadProviders()
@@ -440,6 +468,60 @@ onMounted(async () => {
     </div>
 
     <el-tabs v-model="activeTab" type="border-card">
+      <!-- General Tab -->
+      <el-tab-pane :label="t('settings.general_tab')" name="general">
+        <el-card shadow="never">
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span class="text-xl font-bold">{{ t('settings.general_tab') }}</span>
+            </div>
+          </template>
+          
+          <div class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.preferred_currencies') }}</label>
+              <el-select
+                v-model="preferredCurrencies"
+                multiple
+                filterable
+                placeholder="Select currencies"
+                class="w-full"
+              >
+                <el-option
+                  v-for="item in settingsStore.availableCurrencies"
+                  :key="item.code"
+                  :label="item.code"
+                  :value="item.code"
+                />
+              </el-select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.default_currency') }}</label>
+              <el-select
+                v-model="defaultCurrency"
+                filterable
+                placeholder="Select default currency"
+                class="w-full"
+              >
+                <el-option
+                  v-for="code in preferredCurrencies"
+                  :key="code"
+                  :label="code"
+                  :value="code"
+                />
+              </el-select>
+            </div>
+
+            <div class="pt-4">
+              <el-button type="primary" :loading="settingsLoading" @click="saveGeneralSettings">
+                {{ t('settings.save') }}
+              </el-button>
+            </div>
+          </div>
+        </el-card>
+      </el-tab-pane>
+
       <!-- Security Tab -->
       <el-tab-pane :label="t('keys.security_tab')" name="security">
         <!-- TOTP Section -->
