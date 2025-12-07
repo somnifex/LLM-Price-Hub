@@ -14,6 +14,14 @@ async def register(
     password: str, 
     session: Session = Depends(get_session)
 ):
+    # Validate email format
+    if not email or "@" not in email or "." not in email:
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    # Validate password strength
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    
     # Check existing
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:

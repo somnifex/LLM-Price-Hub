@@ -17,6 +17,13 @@ async def create_model(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_admin)
 ):
+    # Check for duplicate model name
+    existing = session.exec(
+        select(StandardModel).where(StandardModel.name == model.name)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Model with this name already exists")
+    
     session.add(model)
     session.commit()
     session.refresh(model)
@@ -32,6 +39,14 @@ async def update_model(
     existing = session.get(StandardModel, model_id)
     if not existing:
         raise HTTPException(status_code=404, detail="Model not found")
+    
+    # Check for duplicate name (only if name is being changed)
+    if model_data.name != existing.name:
+        duplicate = session.exec(
+            select(StandardModel).where(StandardModel.name == model_data.name)
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=400, detail="Model with this name already exists")
         
     existing.name = model_data.name
     existing.vendor = model_data.vendor

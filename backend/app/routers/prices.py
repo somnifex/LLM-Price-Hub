@@ -55,6 +55,12 @@ async def submit_price(
     - Flexible proof types (image, text, URL)
     """
     
+    # Validate prices
+    if price_in < 0 or price_out < 0:
+        raise HTTPException(status_code=400, detail="Prices cannot be negative")
+    if price_in > 1000000 or price_out > 1000000:
+        raise HTTPException(status_code=400, detail="Price seems unusually high. Please verify.")
+    
     # 1. Handle Provider
     if provider_id:
         # Use existing provider
@@ -133,7 +139,24 @@ async def submit_price(
     # 3. Handle Proof
     proof_img_path = None
     if proof_type == "image" and file:
-        file_ext = file.filename.split(".")[-1] if file.filename else "png"
+        # Validate file
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Invalid file")
+        
+        # Check file extension
+        allowed_extensions = ["jpg", "jpeg", "png", "gif", "webp"]
+        file_ext = file.filename.split(".")[-1].lower()
+        if file_ext not in allowed_extensions:
+            raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(allowed_extensions)}")
+        
+        # Check file size (limit to 5MB)
+        file.file.seek(0, 2)  # Seek to end
+        file_size = file.file.tell()
+        file.file.seek(0)  # Reset to beginning
+        
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
+        
         filename = f"{datetime.now().timestamp()}_{provider.name}.{file_ext}".replace(" ", "_")
         file_path = os.path.join(UPLOAD_DIR, filename)
         
@@ -277,10 +300,15 @@ async def update_price(
         
     if current_user.role not in ["admin", "super_admin"] and price.submitter_id != current_user.id:
          raise HTTPException(status_code=403, detail="Not authorized")
-         
+    
+    # Validate prices if being updated
     if "input_price" in price_data:
+        if price_data["input_price"] < 0:
+            raise HTTPException(status_code=400, detail="Input price cannot be negative")
         price.input_price = price_data["input_price"]
     if "output_price" in price_data:
+        if price_data["output_price"] < 0:
+            raise HTTPException(status_code=400, detail="Output price cannot be negative")
         price.output_price = price_data["output_price"]
     if "currency" in price_data:
         price.currency = price_data["currency"]
