@@ -16,7 +16,6 @@ def get_db_session():
 def update_exchange_rates():
     """Fetch rates from public API and update DB."""
     try:
-        # Default settings
         url = "https://api.exchangerate-api.com/v4/latest/USD"
         api_key = ""
         
@@ -32,12 +31,7 @@ def update_exchange_rates():
             if curr_key:
                 api_key = curr_key
         
-        # If user put placeholders or simple URL, handle it.
-        # If API key exists, usually it's injected into URL or Header.
-        # For simplicity, if key exists and URL contains {KEY}, replace it, otherwise append?
-        # Let's assume the user provides the FULL URL or standard template.
-        # If using exchangerate-api.com v6: https://v6.exchangerate-api.com/v6/YOUR-API-KEY/latest/USD
-        
+        # Replace placeholder with API key if present
         if "{KEY}" in url and api_key:
             url = url.replace("{KEY}", api_key)
             

@@ -8,8 +8,6 @@ from app.auth import get_current_active_user
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
-# ============ Pydantic Models ============
-
 class E2EESetupRequest(BaseModel):
     salt: str
     verification: str

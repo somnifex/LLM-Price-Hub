@@ -12,13 +12,9 @@ from app.auth import get_current_admin, get_current_super_admin
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-# ============ Pydantic Models ============
-
 class ApproveModelRequestData(BaseModel):
     name: Optional[str] = None  # Override requested name if needed
     vendor: Optional[str] = None
-
-# ============ Price Review ============
 
 @router.get("/pending")
 async def get_pending_prices(

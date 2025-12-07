@@ -19,8 +19,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/submit")
 async def submit_price(
     # Provider info
-    provider_id: Optional[int] = Form(None),  # Use existing provider
-    provider_name: Optional[str] = Form(None),  # Or create new
+    provider_id: Optional[int] = Form(None),
+    provider_name: Optional[str] = Form(None),
     provider_website: Optional[str] = Form(None),
     openai_base_url: Optional[str] = Form(None),
     gemini_base_url: Optional[str] = Form(None),
@@ -30,8 +30,8 @@ async def submit_price(
     provider_proof_content: Optional[str] = Form(None),
     
     # Model info
-    standard_model_id: Optional[int] = Form(None),  # Use existing standard model
-    new_model_name: Optional[str] = Form(None),  # Or request new
+    standard_model_id: Optional[int] = Form(None),
+    new_model_name: Optional[str] = Form(None),
     new_model_vendor: Optional[str] = Form(None),
     provider_model_name: Optional[str] = Form(None),  # Provider's custom model name
     
@@ -43,7 +43,7 @@ async def submit_price(
     # Proof (flexible)
     proof_type: Optional[str] = Form(None),  # 'image', 'text', 'url'
     proof_content: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None),  # Optional image upload
+    file: Optional[UploadFile] = File(None),
     
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
@@ -57,10 +57,10 @@ async def submit_price(
     
     # 1. Handle Provider
     if provider_id:
-        # Use existing provider
         provider = session.get(Provider, provider_id)
         if not provider:
             raise HTTPException(status_code=404, detail="Provider not found")
+        
         # Check access if private
         if provider.status == ProviderStatus.private and provider.owner_id != current_user.id:
             raise HTTPException(status_code=403, detail="Cannot access private provider")

@@ -36,7 +36,6 @@ async def register(
     password: str, 
     session: Session = Depends(get_session)
 ):
-    # Check existing
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")

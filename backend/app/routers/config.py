@@ -6,18 +6,6 @@ from typing import Optional
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 
-# Optional dependency for get_current_user
-async def get_current_user_optional():
-    """Returns None if not authenticated, used for optional auth."""
-    try:
-        from app.auth import get_current_user
-        from fastapi import Depends as _Depends
-        # This is a workaround - we'll just return None for now
-        # In practice, we should check token manually
-        return None
-    except:
-        return None
-
 @router.get("/rates")
 async def get_rates(session: Session = Depends(get_session)):
     rates = session.exec(select(CurrencyRate)).all()

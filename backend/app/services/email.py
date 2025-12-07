@@ -1,9 +1,11 @@
 import smtplib
+import logging
 from email.message import EmailMessage
 from typing import Dict
 from sqlmodel import Session, select
 from app.models import SystemSetting
 
+logger = logging.getLogger("email")
 
 def _bool_val(value: str) -> bool:
     return str(value).lower() in {"1", "true", "yes", "on"}
@@ -47,5 +49,6 @@ def send_email(to_email: str, subject: str, body: str, session: Session) -> bool
                     server.login(username, password)
                 server.send_message(msg)
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to send email: {e}")
         return False
