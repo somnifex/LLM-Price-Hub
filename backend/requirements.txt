@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlmodel
+mysql-connector-python
+apscheduler
+python-multipart
+httpx
+jinja2
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.2

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  db:
+    image: mysql:8
+    container_name: llm_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: llm_price_hub
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # 后端服务
+  api:
+    build: ./backend
+    container_name: llm_api
+    restart: always
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./backend/app:/app/app       # 代码热重载
+      - ./backend/static:/app/static # 图片持久化
+    environment:
+      DATABASE_URL: mysql+mysqlconnector://root:rootpassword@db/llm_price_hub
+      ADMIN_TOKEN: "secret-admin-key-123" # 简单鉴权密钥
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 前端服务 (开发环境)
+  web:
+    build: ./frontend
+    container_name: llm_web
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
