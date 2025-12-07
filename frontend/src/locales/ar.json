@@ -9,7 +9,7 @@
         "api_keys": "مفاتيح API"
     },
     "home": {
-        "title": "LLM Price Hub",
+        "title": "مركز أسعار LLM",
         "subtitle": "اعثر على أفضل الأسعار لنماذج اللغة الكبيرة",
         "model_label": "اختر النموذج",
         "currency_label": "العملة",

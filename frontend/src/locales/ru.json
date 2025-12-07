@@ -9,7 +9,7 @@
         "api_keys": "API ключи"
     },
     "home": {
-        "title": "LLM Price Hub",
+        "title": "Центр цен LLM",
         "subtitle": "Найдите лучшие цены на большие языковые модели",
         "model_label": "Выберите модель",
         "currency_label": "Валюта",

@@ -9,7 +9,7 @@
         "api_keys": "Claves API"
     },
     "home": {
-        "title": "LLM Price Hub",
+        "title": "Centro de Precios LLM",
         "subtitle": "Encuentra los mejores precios para modelos de lenguaje grandes",
         "model_label": "Seleccionar modelo",
         "currency_label": "Moneda",
