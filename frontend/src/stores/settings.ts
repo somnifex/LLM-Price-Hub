@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '@/api'
+import logger from '@/utils/logger'
 import { useAuthStore } from './auth'
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -18,7 +19,7 @@ export const useSettingsStore = defineStore('settings', () => {
             const res = await api.get('/settings/currencies')
             currencies.value = res.data
         } catch (e) {
-            console.error('Failed to fetch currencies', e)
+            logger.error('Failed to fetch currencies', e)
         }
     }
 
@@ -33,7 +34,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 try {
                     preferred = JSON.parse(data.preferred_currencies)
                 } catch (e) {
-                    console.error('Failed to parse preferred currencies', e)
+                    logger.error('Failed to parse preferred currencies', e)
                 }
             }
 
@@ -42,7 +43,7 @@ export const useSettingsStore = defineStore('settings', () => {
                 default_currency: data.default_currency || 'USD'
             }
         } catch (e) {
-            console.error('Failed to fetch user settings', e)
+            logger.error('Failed to fetch user settings', e)
         }
     }
 
@@ -56,7 +57,7 @@ export const useSettingsStore = defineStore('settings', () => {
             await api.put('/settings/user', payload)
             userSettings.value = payload
         } catch (e) {
-            console.error('Failed to update settings', e)
+            logger.error('Failed to update settings', e)
             throw e
         } finally {
             loading.value = false

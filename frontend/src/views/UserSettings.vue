@@ -288,6 +288,19 @@ async function loadTotpStatus() {
   }
 }
 
+const openDisableTotpDialog = () => {
+  totpCode.value = ''
+  showDisableTotp.value = true
+}
+
+const toggleE2EEState = () => {
+  if (e2eeEnabled.value) {
+    disableE2EE()
+  } else {
+    showE2EESetup.value = true
+  }
+}
+
 async function startTotpSetup() {
   totpLoading.value = true
   try {
@@ -663,7 +676,7 @@ onMounted(async () => {
           <!-- Security Tab -->
           <el-tab-pane :label="t('keys.security_tab')" name="security">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div class="panel p-5 space-y-4">
+              <div class="panel p-5 space-y-4 flex flex-col h-full">
                 <div class="flex items-center justify-between">
                   <div>
                     <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.totp_title') }}</h3>
@@ -672,53 +685,53 @@ onMounted(async () => {
                   <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
                 </div>
 
-                <div v-if="!totpEnabled" class="space-y-3">
-                  <el-button type="primary" :loading="totpLoading" @click="startTotpSetup">{{ t('keys.enable_totp') }}</el-button>
-                </div>
-
-                <div v-else class="space-y-3">
-                  <el-alert type="success" :closable="false">{{ t('keys.totp_active') }}</el-alert>
-                  <el-button type="danger" @click="totpCode = ''; showDisableTotp = true">{{ t('keys.disable_totp') }}</el-button>
-                </div>
-
-                <div v-if="totpBackupCodes.length" class="mt-2 bg-gray-50 p-3 rounded">
-                  <p class="font-semibold mb-2">{{ t('keys.backup_codes') }}</p>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    <code v-for="code in totpBackupCodes" :key="code" class="block bg-white border px-2 py-1 rounded text-center">{{ code }}</code>
+                <div class="panel-body">
+                  <el-alert v-if="totpEnabled" type="success" :closable="false">{{ t('keys.totp_active') }}</el-alert>
+                  <div v-if="totpBackupCodes.length" class="mt-2 bg-gray-50 p-3 rounded">
+                    <p class="font-semibold mb-2">{{ t('keys.backup_codes') }}</p>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      <code v-for="code in totpBackupCodes" :key="code" class="block bg-white border px-2 py-1 rounded text-center">{{ code }}</code>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">{{ t('keys.backup_codes_hint') }}</p>
                   </div>
-                  <p class="text-xs text-gray-500 mt-2">{{ t('keys.backup_codes_hint') }}</p>
+                </div>
+
+                <div class="panel-footer">
+                  <el-button
+                    :type="totpEnabled ? 'danger' : 'primary'"
+                    :loading="totpLoading"
+                    @click="totpEnabled ? openDisableTotpDialog() : startTotpSetup"
+                  >
+                    {{ totpEnabled ? t('keys.disable_totp') : t('keys.enable_totp') }}
+                  </el-button>
                 </div>
               </div>
 
-              <div class="panel p-5 space-y-4">
+              <div class="panel p-5 space-y-4 flex flex-col h-full">
                 <div class="flex items-center justify-between">
                   <div>
                     <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.encryption_settings') }}</h3>
                     <p class="muted-subtitle">{{ t('keys.e2ee_description') }}</p>
                   </div>
-                  <el-tag v-if="e2eeEnabled" type="success">{{ t('keys.enabled') }}</el-tag>
-                  <el-tag v-else type="info">{{ t('keys.disabled') }}</el-tag>
+                  <el-tag :type="e2eeEnabled ? 'success' : 'info'">{{ e2eeEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
                 </div>
                 
-                <div v-if="!e2eeEnabled" class="space-y-3">
-                  <el-button type="primary" @click="showE2EESetup = true">
-                    {{ t('keys.enable_encryption') }}
-                  </el-button>
-                </div>
-                
-                <div v-else class="space-y-3">
-                  <el-alert type="success" :closable="false">
+                <div class="panel-body">
+                  <el-alert v-if="e2eeEnabled" type="success" :closable="false">
                     {{ t('keys.e2ee_active') }}
                   </el-alert>
-                  <el-button type="danger" @click="disableE2EE">
-                    {{ t('keys.disable_encryption') }}
+                </div>
+                
+                <div class="panel-footer">
+                  <el-button :type="e2eeEnabled ? 'danger' : 'primary'" @click="toggleE2EEState()">
+                    {{ e2eeEnabled ? t('keys.disable_encryption') : t('keys.enable_encryption') }}
                   </el-button>
                 </div>
               </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-              <div class="panel p-5 space-y-4">
+              <div class="panel p-5 space-y-4 flex flex-col h-full">
                 <div class="section-header">
                   <div>
                     <p class="section-kicker mb-1">{{ t('account.password_heading') }}</p>
@@ -727,35 +740,37 @@ onMounted(async () => {
                   </div>
                   <el-tag type="info">{{ t('keys.security_tab') }}</el-tag>
                 </div>
-                <el-form label-position="top" @submit.prevent>
-                  <el-form-item :label="t('account.new_password')">
-                    <el-input v-model="passwordForm.newPassword" type="password" show-password />
-                  </el-form-item>
-                  <el-form-item :label="t('keys.confirm_password')">
-                    <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
-                  </el-form-item>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <el-form-item :label="t('account.email_code')">
-                      <div class="flex gap-2">
-                        <el-input v-model="passwordForm.emailCode" maxlength="6" />
-                        <el-button type="primary" :loading="passwordCodeSending" @click="sendPasswordEmailCode">
-                          {{ t('account.request_password_code') }}
-                        </el-button>
-                      </div>
+                <div class="panel-body">
+                  <el-form label-position="top" @submit.prevent>
+                    <el-form-item :label="t('account.new_password')">
+                      <el-input v-model="passwordForm.newPassword" type="password" show-password />
                     </el-form-item>
-                    <el-form-item :label="t('account.totp_code')">
-                      <el-input v-model="passwordForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
+                    <el-form-item :label="t('keys.confirm_password')">
+                      <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
                     </el-form-item>
-                  </div>
-                  <div class="action-row pt-1">
-                    <el-button type="primary" :loading="passwordSaving" @click="updatePassword">
-                      {{ t('settings.save') }}
-                    </el-button>
-                  </div>
-                </el-form>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <el-form-item :label="t('account.email_code')">
+                        <div class="flex gap-2 items-center">
+                          <el-input class="flex-1 uniform-input" v-model="passwordForm.emailCode" maxlength="6" />
+                          <el-button type="primary" :loading="passwordCodeSending" @click="sendPasswordEmailCode">
+                            {{ t('account.request_password_code') }}
+                          </el-button>
+                        </div>
+                      </el-form-item>
+                      <el-form-item :label="t('account.totp_code')">
+                        <el-input class="uniform-input" v-model="passwordForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
+                      </el-form-item>
+                    </div>
+                  </el-form>
+                </div>
+                <div class="panel-footer">
+                  <el-button type="primary" :loading="passwordSaving" @click="updatePassword">
+                    {{ t('settings.save') }}
+                  </el-button>
+                </div>
               </div>
 
-              <div class="panel p-5 space-y-4">
+              <div class="panel p-5 space-y-4 flex flex-col h-full">
                 <div class="section-header">
                   <div>
                     <p class="section-kicker mb-1">{{ t('account.email_heading') }}</p>
@@ -764,30 +779,32 @@ onMounted(async () => {
                   </div>
                   <el-tag type="info">{{ t('account.current_email') }}: {{ authStore.user?.email }}</el-tag>
                 </div>
-                <el-form label-position="top" @submit.prevent>
-                  <el-form-item :label="t('account.new_email')">
-                    <el-input v-model="emailForm.newEmail" type="email" :placeholder="authStore.user?.email || 'you@example.com'" />
-                  </el-form-item>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <el-form-item :label="t('account.email_code')">
-                      <div class="flex gap-2">
-                        <el-input v-model="emailForm.emailCode" maxlength="6" />
-                        <el-button type="primary" :loading="emailCodeSending" @click="sendEmailChangeCode">
-                          {{ t('account.request_email_code') }}
-                        </el-button>
-                      </div>
+                <div class="panel-body">
+                  <el-form label-position="top" @submit.prevent>
+                    <el-form-item :label="t('account.new_email')">
+                      <el-input v-model="emailForm.newEmail" type="email" :placeholder="authStore.user?.email || 'you@example.com'" />
                     </el-form-item>
-                    <el-form-item :label="t('account.totp_code')">
-                      <el-input v-model="emailForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
-                    </el-form-item>
-                  </div>
-                  <div class="action-row">
-                    <el-button type="primary" :loading="emailSaving" @click="updateEmail">
-                      {{ t('account.update_email') }}
-                    </el-button>
-                    <p class="text-xs text-secondary-500">{{ t('account.verification_required') }}</p>
-                  </div>
-                </el-form>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <el-form-item :label="t('account.email_code')">
+                        <div class="flex gap-2 items-center">
+                          <el-input class="flex-1 uniform-input" v-model="emailForm.emailCode" maxlength="6" />
+                          <el-button type="primary" :loading="emailCodeSending" @click="sendEmailChangeCode">
+                            {{ t('account.request_email_code') }}
+                          </el-button>
+                        </div>
+                      </el-form-item>
+                      <el-form-item :label="t('account.totp_code')">
+                        <el-input class="uniform-input" v-model="emailForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
+                      </el-form-item>
+                    </div>
+                  </el-form>
+                </div>
+                <div class="panel-footer panel-footer--between">
+                  <p class="text-xs text-secondary-500">{{ t('account.verification_required') }}</p>
+                  <el-button type="primary" :loading="emailSaving" @click="updateEmail">
+                    {{ t('account.update_email') }}
+                  </el-button>
+                </div>
               </div>
             </div>
           </el-tab-pane>
@@ -1116,5 +1133,29 @@ code {
 :deep(.el-dialog__footer) {
   border-top: 1px solid rgba(226, 232, 240, 0.9);
   padding-top: 12px;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 1rem;
+}
+
+.panel-footer {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.panel-footer--between {
+  justify-content: space-between;
+}
+
+.uniform-input :deep(.el-input__inner) {
+  min-height: 44px;
 }
 </style>
