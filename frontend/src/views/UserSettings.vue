@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { CopyDocument, View, Hide } from '@element-plus/icons-vue'
@@ -20,6 +20,23 @@ const activeTab = ref('general')
 const preferredCurrencies = ref<string[]>([])
 const defaultCurrency = ref('USD')
 const settingsLoading = ref(false)
+
+// Account security state
+const passwordForm = reactive({
+  newPassword: '',
+  confirmPassword: '',
+  emailCode: '',
+  totpCode: '',
+})
+const emailForm = reactive({
+  newEmail: '',
+  emailCode: '',
+  totpCode: '',
+})
+const passwordSaving = ref(false)
+const emailSaving = ref(false)
+const passwordCodeSending = ref(false)
+const emailCodeSending = ref(false)
 
 // TOTP State
 const totpEnabled = ref(false)
@@ -93,6 +110,106 @@ async function saveGeneralSettings() {
   }
 }
 
+function getErrorMessage(error: any, fallback: string) {
+  const detail = error?.response?.data?.detail
+  if (typeof detail === 'string') return detail
+  return fallback
+}
+
+async function sendPasswordEmailCode() {
+  passwordCodeSending.value = true
+  try {
+    await api.post('/account/request-code', { action: 'password_reset' })
+    ElMessage.success(t('account.code_sent'))
+  } catch (error: any) {
+    ElMessage.error(getErrorMessage(error, t('settings.save_failed')))
+  } finally {
+    passwordCodeSending.value = false
+  }
+}
+
+async function updatePassword() {
+  if (passwordForm.newPassword.length < 8) {
+    ElMessage.error(t('account.password_hint'))
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.error(t('keys.passwords_do_not_match'))
+    return
+  }
+  if (!passwordForm.emailCode && !passwordForm.totpCode) {
+    ElMessage.error(t('account.verification_required'))
+    return
+  }
+
+  passwordSaving.value = true
+  try {
+    await api.post('/account/reset-password', {
+      new_password: passwordForm.newPassword,
+      code: passwordForm.emailCode || undefined,
+      totp_code: passwordForm.totpCode || undefined,
+    })
+    ElMessage.success(t('account.password_updated'))
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+    passwordForm.emailCode = ''
+    passwordForm.totpCode = ''
+  } catch (error: any) {
+    ElMessage.error(getErrorMessage(error, t('settings.save_failed')))
+  } finally {
+    passwordSaving.value = false
+  }
+}
+
+async function sendEmailChangeCode() {
+  if (!emailForm.newEmail) {
+    ElMessage.error(t('account.enter_new_email'))
+    return
+  }
+  emailCodeSending.value = true
+  try {
+    await api.post('/account/request-code', { action: 'email_change', new_email: emailForm.newEmail })
+    ElMessage.success(t('account.code_sent'))
+  } catch (error: any) {
+    ElMessage.error(getErrorMessage(error, t('settings.save_failed')))
+  } finally {
+    emailCodeSending.value = false
+  }
+}
+
+async function updateEmail() {
+  if (!emailForm.newEmail) {
+    ElMessage.error(t('account.enter_new_email'))
+    return
+  }
+  if (!emailForm.emailCode && !emailForm.totpCode) {
+    ElMessage.error(t('account.verification_required'))
+    return
+  }
+  emailSaving.value = true
+  try {
+    const res = await api.post('/account/change-email', {
+      new_email: emailForm.newEmail,
+      code: emailForm.emailCode || undefined,
+      totp_code: emailForm.totpCode || undefined,
+    })
+    authStore.setUser({
+      email: emailForm.newEmail.toLowerCase(),
+      role: authStore.user?.role || 'user',
+    })
+    ElMessage.success(t('account.email_updated'))
+    if (!res.data?.email_verified) {
+      ElMessage.info(t('account.verify_new_email'))
+    }
+    emailForm.emailCode = ''
+    emailForm.totpCode = ''
+  } catch (error: any) {
+    ElMessage.error(getErrorMessage(error, t('settings.save_failed')))
+  } finally {
+    emailSaving.value = false
+  }
+}
+
 // Utility: Copy to clipboard
 async function copyToClipboard(text: string, label: string) {
   try {
@@ -125,7 +242,7 @@ async function toggleKeyVisibility(key: any) {
 
 function getDisplayKey(key: any): string {
   if (!isKeyVisible(key.id)) {
-    return '••••••••••••••••'
+    return '**************'
   }
   
   if (key.is_encrypted && password.value && e2eeSalt.value) {
@@ -459,418 +576,521 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto p-6 max-w-6xl">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold">{{ t('keys.user_settings') }}</h1>
-      <el-button v-if="authStore.isAdmin" type="primary" @click="$router.push('/admin')">
-        {{ t('keys.admin_dashboard') }}
-      </el-button>
+  <div class="relative overflow-hidden bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+    <div class="absolute inset-0 pointer-events-none">
+      <div class="absolute -top-20 right-0 w-80 h-80 bg-primary-200/50 blur-3xl"></div>
+      <div class="absolute -bottom-16 -left-8 w-96 h-96 bg-secondary-200/50 blur-3xl"></div>
+      <div class="absolute inset-0" style="background-image: radial-gradient(rgba(15,23,42,0.08) 1px, transparent 1px); background-size: 18px 18px;"></div>
     </div>
 
-    <el-tabs v-model="activeTab" type="border-card">
-      <!-- General Tab -->
-      <el-tab-pane :label="t('settings.general_tab')" name="general">
-        <el-card shadow="never">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="text-xl font-bold">{{ t('settings.general_tab') }}</span>
-            </div>
-          </template>
-          
-          <div class="space-y-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.preferred_currencies') }}</label>
-              <el-select
-                v-model="preferredCurrencies"
-                multiple
-                filterable
-                placeholder="Select currencies"
-                class="w-full"
-              >
-                <el-option
-                  v-for="item in settingsStore.availableCurrencies"
-                  :key="item.code"
-                  :label="item.code"
-                  :value="item.code"
-                />
-              </el-select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.default_currency') }}</label>
-              <el-select
-                v-model="defaultCurrency"
-                filterable
-                placeholder="Select default currency"
-                class="w-full"
-              >
-                <el-option
-                  v-for="code in preferredCurrencies"
-                  :key="code"
-                  :label="code"
-                  :value="code"
-                />
-              </el-select>
-            </div>
-
-            <div class="pt-4">
-              <el-button type="primary" :loading="settingsLoading" @click="saveGeneralSettings">
-                {{ t('settings.save') }}
-              </el-button>
-            </div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+      <div class="panel overflow-hidden border border-primary-100 bg-gradient-to-r from-white via-primary-50 to-secondary-50 text-secondary-900 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)]">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6">
+          <div>
+            <p class="section-kicker text-secondary-500 mb-2">{{ t('keys.user_settings') }}</p>
+            <h1 class="text-3xl font-bold text-secondary-900">{{ authStore.user?.email || t('keys.user_settings') }}</h1>
+            <p class="text-sm text-secondary-600">{{ t('keys.security_tab') }} / {{ t('keys.api_keys_tab') }} / {{ t('keys.channels_tab') }}</p>
           </div>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- Security Tab -->
-      <el-tab-pane :label="t('keys.security_tab')" name="security">
-        <!-- TOTP Section -->
-        <el-card class="mb-6" shadow="never">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="text-xl font-bold">{{ t('keys.totp_title') }}</span>
-              <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
-            </div>
-          </template>
-
-          <div v-if="!totpEnabled" class="space-y-3">
-            <p class="text-gray-600">{{ t('keys.totp_description') }}</p>
-            <el-button type="primary" :loading="totpLoading" @click="startTotpSetup">{{ t('keys.enable_totp') }}</el-button>
-          </div>
-
-          <div v-else class="space-y-3">
-            <el-alert type="success" :closable="false">{{ t('keys.totp_active') }}</el-alert>
-            <el-button type="danger" @click="totpCode = ''; showDisableTotp = true">{{ t('keys.disable_totp') }}</el-button>
-          </div>
-
-          <div v-if="totpBackupCodes.length" class="mt-4 bg-gray-50 p-3 rounded">
-            <p class="font-semibold mb-2">{{ t('keys.backup_codes') }}</p>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-              <code v-for="code in totpBackupCodes" :key="code" class="block bg-white border px-2 py-1 rounded text-center">{{ code }}</code>
-            </div>
-            <p class="text-xs text-gray-500 mt-2">{{ t('keys.backup_codes_hint') }}</p>
-          </div>
-        </el-card>
-        
-        <!-- E2EE Settings Section -->
-        <el-card shadow="never">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="text-xl font-bold">{{ t('keys.encryption_settings') }}</span>
-              <el-tag v-if="e2eeEnabled" type="success">{{ t('keys.enabled') }}</el-tag>
-              <el-tag v-else type="info">{{ t('keys.disabled') }}</el-tag>
-            </div>
-          </template>
-          
-          <div v-if="!e2eeEnabled" class="space-y-4">
-            <p>{{ t('keys.e2ee_description') }}</p>
-            <el-button type="primary" @click="showE2EESetup = true">
-              {{ t('keys.enable_encryption') }}
+          <div class="flex items-center gap-3">
+            <el-tag :type="totpEnabled ? 'success' : 'info'" effect="light">
+              {{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}
+            </el-tag>
+            <el-button v-if="authStore.isAdmin" type="primary" @click="$router.push('/admin')">
+              {{ t('keys.admin_dashboard') }}
             </el-button>
           </div>
-          
-          <div v-else class="space-y-4">
-            <el-alert type="success" :closable="false">
-              {{ t('keys.e2ee_active') }}
-            </el-alert>
-            <el-button type="danger" @click="disableE2EE">
-              {{ t('keys.disable_encryption') }}
-            </el-button>
-          </div>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- API Keys Tab -->
-      <el-tab-pane :label="t('keys.api_keys_tab')" name="api_keys">
-        <el-card shadow="never">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="text-xl font-bold">{{ t('keys.my_api_keys') }}</span>
-              <el-button type="primary" size="small" @click="showAddKeyDialog = true">
-                {{ t('keys.add_key') }}
-              </el-button>
-            </div>
-          </template>
-          
-          <el-table :data="apiKeys" v-loading="keysLoading" stripe>
-            <el-table-column prop="provider_name" :label="t('keys.provider')" />
-            <el-table-column :label="t('keys.api_key')" min-width="250">
-              <template #default="{ row }">
-                <div class="flex items-center gap-2">
-                  <code class="flex-1 text-sm font-mono">{{ getDisplayKey(row) }}</code>
-                  <el-button size="small" :icon="isKeyVisible(row.id) ? Hide : View" circle @click="toggleKeyVisibility(row)" />
-                  <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(getActualKey(row), 'API Key')" :disabled="!isKeyVisible(row.id) && row.is_encrypted" />
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column prop="note" :label="t('keys.note')" />
-            <el-table-column :label="t('keys.status')" width="100">
-              <template #default="{ row }">
-                <el-tag v-if="row.is_encrypted" type="success" size="small">
-                  {{ t('keys.encrypted') }}
-                </el-tag>
-                <el-tag v-else type="info" size="small">
-                  {{ t('keys.plaintext') }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.actions')" width="100">
-              <template #default="{ row }">
-                <el-button size="small" type="danger" @click="deleteAPIKey(row.id)">
-                  {{ t('common.delete') }}
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-tab-pane>
-
-      <!-- Channels Tab -->
-      <el-tab-pane :label="t('keys.channels_tab')" name="channels">
-        <el-card shadow="never">
-          <template #header>
-            <div class="flex justify-between items-center">
-              <span class="text-xl font-bold">{{ t('keys.my_providers') }}</span>
-              <el-button type="primary" size="small" @click="showAddProviderDialog = true">
-                {{ t('keys.add_provider') }}
-              </el-button>
-            </div>
-          </template>
-          
-          <el-table :data="userProviders" v-loading="providersLoading" stripe>
-            <el-table-column prop="name" :label="t('keys.provider_name')" />
-            <el-table-column prop="website" :label="t('keys.website')" />
-            <el-table-column :label="t('keys.status')">
-              <template #default="{ row }">
-                <el-tag :type="getStatusTag(row.status)" size="small">
-                  {{ t('keys.status_' + row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('keys.base_urls')" min-width="200">
-              <template #default="{ row }">
-                <div class="space-y-1">
-                  <div v-if="row.openai_base_url" class="flex items-center gap-1 text-xs">
-                    <span class="text-gray-500">OpenAI:</span>
-                    <code class="flex-1 truncate">{{ row.openai_base_url }}</code>
-                    <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.openai_base_url, 'OpenAI URL')" />
-                  </div>
-                  <div v-if="row.gemini_base_url" class="flex items-center gap-1 text-xs">
-                    <span class="text-gray-500">Gemini:</span>
-                    <code class="flex-1 truncate">{{ row.gemini_base_url }}</code>
-                    <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.gemini_base_url, 'Gemini URL')" />
-                  </div>
-                  <div v-if="row.claude_base_url" class="flex items-center gap-1 text-xs">
-                    <span class="text-gray-500">Claude:</span>
-                    <code class="flex-1 truncate">{{ row.claude_base_url }}</code>
-                    <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.claude_base_url, 'Claude URL')" />
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column :label="t('common.actions')" width="150">
-              <template #default="{ row }">
-                <el-button size="small" @click="editingProvider = { ...row }; showEditProviderDialog = true">
-                  {{ t('common.edit') }}
-                </el-button>
-                <el-button size="small" type="danger" @click="deleteProvider(row.id)">
-                  {{ t('common.delete') }}
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-tab-pane>
-    </el-tabs>
-
-    <!-- TOTP Setup Dialog -->
-    <el-dialog v-model="showTotpDialog" :title="t('keys.enable_totp')" width="520px">
-      <div class="space-y-3">
-        <p>{{ t('keys.totp_scan_hint') }}</p>
-        <el-alert type="info" :closable="false">
-          <div class="break-all">{{ totpUrl }}</div>
-        </el-alert>
-        <div v-if="totpQr" class="flex justify-center">
-          <img :src="totpQr" alt="TOTP QR" class="w-40 h-40" />
-        </div>
-        <el-form @submit.prevent="confirmTotpSetup">
-          <el-form-item :label="t('keys.totp_secret')">
-            <el-input v-model="totpSecret" readonly />
-          </el-form-item>
-          <el-form-item :label="t('keys.totp_code')">
-            <el-input v-model="totpCode" />
-          </el-form-item>
-        </el-form>
-        <el-alert type="warning" :closable="false">{{ t('keys.backup_code_notice') }}</el-alert>
-        <div v-if="totpBackupCodes.length" class="bg-gray-50 border rounded p-3 space-y-2">
-          <div class="text-sm font-semibold">{{ t('keys.backup_codes') }}</div>
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-            <code v-for="code in totpBackupCodes" :key="code" class="bg-white border rounded px-2 py-1 block text-center font-mono text-sm">{{ code }}</code>
-          </div>
-          <div class="text-xs text-gray-500">{{ t('keys.backup_codes_hint') }}</div>
         </div>
       </div>
-      <template #footer>
-        <el-button @click="showTotpDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="totpLoading" @click="confirmTotpSetup">{{ totpBackupCodes.length ? t('common.confirm') : t('keys.enable_totp') }}</el-button>
-      </template>
-    </el-dialog>
 
-    <!-- Disable TOTP Dialog -->
-    <el-dialog v-model="showDisableTotp" :title="t('keys.disable_totp')" width="420px">
-      <el-form @submit.prevent="disableTotp">
+      <div class="panel p-3">
+        <el-tabs v-model="activeTab" type="card">
+          <!-- General Tab -->
+          <el-tab-pane :label="t('settings.general_tab')" name="general">
+            <div class="panel p-5 space-y-5">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="section-kicker mb-1">{{ t('settings.general_tab') }}</p>
+                  <h3 class="text-xl font-semibold text-secondary-900">{{ t('settings.general_tab') }}</h3>
+                  <p class="muted-subtitle">{{ t('settings.preferred_currencies') }}</p>
+                </div>
+              </div>
+              
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.preferred_currencies') }}</label>
+                  <el-select
+                    v-model="preferredCurrencies"
+                    multiple
+                    filterable
+                    placeholder="Select currencies"
+                    class="w-full"
+                  >
+                    <el-option
+                      v-for="item in settingsStore.availableCurrencies"
+                      :key="item.code"
+                      :label="item.code"
+                      :value="item.code"
+                    />
+                  </el-select>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">{{ t('settings.default_currency') }}</label>
+                  <el-select
+                    v-model="defaultCurrency"
+                    filterable
+                    placeholder="Select default currency"
+                    class="w-full"
+                  >
+                    <el-option
+                      v-for="code in preferredCurrencies"
+                      :key="code"
+                      :label="code"
+                      :value="code"
+                    />
+                  </el-select>
+                </div>
+
+                <div class="pt-2">
+                  <el-button type="primary" :loading="settingsLoading" @click="saveGeneralSettings">
+                    {{ t('settings.save') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </el-tab-pane>
+
+          <!-- Security Tab -->
+          <el-tab-pane :label="t('keys.security_tab')" name="security">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="panel p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('keys.totp_title') }}</p>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.security_tab') }}</h3>
+                    <p class="muted-subtitle">{{ t('keys.totp_description') }}</p>
+                  </div>
+                  <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
+                </div>
+
+                <div v-if="!totpEnabled" class="space-y-3">
+                  <p class="text-gray-600">{{ t('keys.totp_description') }}</p>
+                  <el-button type="primary" :loading="totpLoading" @click="startTotpSetup">{{ t('keys.enable_totp') }}</el-button>
+                </div>
+
+                <div v-else class="space-y-3">
+                  <el-alert type="success" :closable="false">{{ t('keys.totp_active') }}</el-alert>
+                  <el-button type="danger" @click="totpCode = ''; showDisableTotp = true">{{ t('keys.disable_totp') }}</el-button>
+                </div>
+
+                <div v-if="totpBackupCodes.length" class="mt-2 bg-gray-50 p-3 rounded">
+                  <p class="font-semibold mb-2">{{ t('keys.backup_codes') }}</p>
+                  <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <code v-for="code in totpBackupCodes" :key="code" class="block bg-white border px-2 py-1 rounded text-center">{{ code }}</code>
+                  </div>
+                  <p class="text-xs text-gray-500 mt-2">{{ t('keys.backup_codes_hint') }}</p>
+                </div>
+              </div>
+
+              <div class="panel p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('keys.encryption_settings') }}</p>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.encryption_settings') }}</h3>
+                    <p class="muted-subtitle">{{ t('keys.e2ee_description') }}</p>
+                  </div>
+                  <el-tag v-if="e2eeEnabled" type="success">{{ t('keys.enabled') }}</el-tag>
+                  <el-tag v-else type="info">{{ t('keys.disabled') }}</el-tag>
+                </div>
+                
+                <div v-if="!e2eeEnabled" class="space-y-3">
+                  <p>{{ t('keys.e2ee_description') }}</p>
+                  <el-button type="primary" @click="showE2EESetup = true">
+                    {{ t('keys.enable_encryption') }}
+                  </el-button>
+                </div>
+                
+                <div v-else class="space-y-3">
+                  <el-alert type="success" :closable="false">
+                    {{ t('keys.e2ee_active') }}
+                  </el-alert>
+                  <el-button type="danger" @click="disableE2EE">
+                    {{ t('keys.disable_encryption') }}
+                  </el-button>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+              <div class="panel p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('account.password_heading') }}</p>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('account.password_heading') }}</h3>
+                    <p class="muted-subtitle">{{ t('account.password_hint') }}</p>
+                  </div>
+                  <el-tag type="info">{{ t('keys.security_tab') }}</el-tag>
+                </div>
+                <el-form label-position="top" @submit.prevent>
+                  <el-form-item :label="t('account.new_password')">
+                    <el-input v-model="passwordForm.newPassword" type="password" show-password />
+                  </el-form-item>
+                  <el-form-item :label="t('keys.confirm_password')">
+                    <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
+                  </el-form-item>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <el-form-item :label="t('account.email_code')">
+                      <div class="flex gap-2">
+                        <el-input v-model="passwordForm.emailCode" maxlength="6" />
+                        <el-button type="primary" :loading="passwordCodeSending" @click="sendPasswordEmailCode">
+                          {{ t('account.request_password_code') }}
+                        </el-button>
+                      </div>
+                    </el-form-item>
+                    <el-form-item :label="t('account.totp_code')">
+                      <el-input v-model="passwordForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
+                    </el-form-item>
+                  </div>
+                  <el-button type="primary" :loading="passwordSaving" @click="updatePassword">
+                    {{ t('settings.save') }}
+                  </el-button>
+                </el-form>
+              </div>
+
+              <div class="panel p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('account.email_heading') }}</p>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('account.email_heading') }}</h3>
+                    <p class="muted-subtitle">{{ t('account.email_hint') }}</p>
+                  </div>
+                  <el-tag type="info">{{ t('account.current_email') }}: {{ authStore.user?.email }}</el-tag>
+                </div>
+                <el-form label-position="top" @submit.prevent>
+                  <el-form-item :label="t('account.new_email')">
+                    <el-input v-model="emailForm.newEmail" type="email" :placeholder="authStore.user?.email || 'you@example.com'" />
+                  </el-form-item>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <el-form-item :label="t('account.email_code')">
+                      <div class="flex gap-2">
+                        <el-input v-model="emailForm.emailCode" maxlength="6" />
+                        <el-button type="primary" :loading="emailCodeSending" @click="sendEmailChangeCode">
+                          {{ t('account.request_email_code') }}
+                        </el-button>
+                      </div>
+                    </el-form-item>
+                    <el-form-item :label="t('account.totp_code')">
+                      <el-input v-model="emailForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
+                    </el-form-item>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <el-button type="primary" :loading="emailSaving" @click="updateEmail">
+                      {{ t('account.update_email') }}
+                    </el-button>
+                    <p class="text-xs text-secondary-500">{{ t('account.verification_required') }}</p>
+                  </div>
+                </el-form>
+              </div>
+            </div>
+          </el-tab-pane>
+
+          <!-- API Keys Tab -->
+          <el-tab-pane :label="t('keys.api_keys_tab')" name="api_keys">
+            <div class="panel p-5 space-y-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="section-kicker mb-1">{{ t('keys.api_keys_tab') }}</p>
+                  <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.my_api_keys') }}</h3>
+                  <p class="muted-subtitle">{{ t('keys.key_will_be_encrypted') }}</p>
+                </div>
+                <el-button type="primary" size="small" @click="showAddKeyDialog = true">
+                  {{ t('keys.add_key') }}
+                </el-button>
+              </div>
+              
+              <el-table :data="apiKeys" v-loading="keysLoading" stripe class="rounded-xl overflow-hidden">
+                <el-table-column prop="provider_name" :label="t('keys.provider')" />
+                <el-table-column :label="t('keys.api_key')" min-width="250">
+                  <template #default="{ row }">
+                    <div class="flex items-center gap-2">
+                      <code class="flex-1 text-sm font-mono">{{ getDisplayKey(row) }}</code>
+                      <el-button size="small" :icon="isKeyVisible(row.id) ? Hide : View" circle @click="toggleKeyVisibility(row)" />
+                      <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(getActualKey(row), 'API Key')" :disabled="!isKeyVisible(row.id) && row.is_encrypted" />
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="note" :label="t('keys.note')" />
+                <el-table-column :label="t('keys.status')" width="100">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.is_encrypted" type="success" size="small">
+                      {{ t('keys.encrypted') }}
+                    </el-tag>
+                    <el-tag v-else type="info" size="small">
+                      {{ t('keys.plaintext') }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('common.actions')" width="100">
+                  <template #default="{ row }">
+                    <el-button size="small" type="danger" @click="deleteAPIKey(row.id)">
+                      {{ t('common.delete') }}
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+
+          <!-- Channels Tab -->
+          <el-tab-pane :label="t('keys.channels_tab')" name="channels">
+            <div class="panel p-5 space-y-4">
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="section-kicker mb-1">{{ t('keys.channels_tab') }}</p>
+                  <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.my_providers') }}</h3>
+                  <p class="muted-subtitle">{{ t('keys.api_base_urls') }}</p>
+                </div>
+                <el-button type="primary" size="small" @click="showAddProviderDialog = true">
+                  {{ t('keys.add_provider') }}
+                </el-button>
+              </div>
+              
+              <el-table :data="userProviders" v-loading="providersLoading" stripe class="rounded-xl overflow-hidden">
+                <el-table-column prop="name" :label="t('keys.provider_name')" />
+                <el-table-column prop="website" :label="t('keys.website')" />
+                <el-table-column :label="t('keys.status')">
+                  <template #default="{ row }">
+                    <el-tag :type="getStatusTag(row.status)" size="small">
+                      {{ t('keys.status_' + row.status) }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('keys.base_urls')" min-width="200">
+                  <template #default="{ row }">
+                    <div class="space-y-1">
+                      <div v-if="row.openai_base_url" class="flex items-center gap-1 text-xs">
+                        <span class="text-gray-500">OpenAI:</span>
+                        <code class="flex-1 truncate">{{ row.openai_base_url }}</code>
+                        <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.openai_base_url, 'OpenAI URL')" />
+                      </div>
+                      <div v-if="row.gemini_base_url" class="flex items-center gap-1 text-xs">
+                        <span class="text-gray-500">Gemini:</span>
+                        <code class="flex-1 truncate">{{ row.gemini_base_url }}</code>
+                        <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.gemini_base_url, 'Gemini URL')" />
+                      </div>
+                      <div v-if="row.claude_base_url" class="flex items-center gap-1 text-xs">
+                        <span class="text-gray-500">Claude:</span>
+                        <code class="flex-1 truncate">{{ row.claude_base_url }}</code>
+                        <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.claude_base_url, 'Claude URL')" />
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('common.actions')" width="150">
+                  <template #default="{ row }">
+                    <el-button size="small" @click="editingProvider = { ...row }; showEditProviderDialog = true">
+                      {{ t('common.edit') }}
+                    </el-button>
+                    <el-button size="small" type="danger" @click="deleteProvider(row.id)">
+                      {{ t('common.delete') }}
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOTP Setup Dialog -->
+  <el-dialog v-model="showTotpDialog" :title="t('keys.enable_totp')" width="520px">
+    <div class="space-y-3">
+      <p>{{ t('keys.totp_scan_hint') }}</p>
+      <el-alert type="info" :closable="false">
+        <div class="break-all">{{ totpUrl }}</div>
+      </el-alert>
+      <div v-if="totpQr" class="flex justify-center">
+        <img :src="totpQr" alt="TOTP QR" class="w-40 h-40" />
+      </div>
+      <el-form @submit.prevent="confirmTotpSetup">
+        <el-form-item :label="t('keys.totp_secret')">
+          <el-input v-model="totpSecret" readonly />
+        </el-form-item>
         <el-form-item :label="t('keys.totp_code')">
           <el-input v-model="totpCode" />
         </el-form-item>
       </el-form>
-      <template #footer>
-        <el-button @click="showDisableTotp = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="danger" :loading="totpLoading" @click="disableTotp">{{ t('common.confirm') }}</el-button>
+      <el-alert type="warning" :closable="false">{{ t('keys.backup_code_notice') }}</el-alert>
+      <div v-if="totpBackupCodes.length" class="bg-gray-50 border rounded p-3 space-y-2">
+        <div class="text-sm font-semibold">{{ t('keys.backup_codes') }}</div>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <code v-for="code in totpBackupCodes" :key="code" class="bg-white border rounded px-2 py-1 block text-center font-mono text-sm">{{ code }}</code>
+        </div>
+        <div class="text-xs text-gray-500">{{ t('keys.backup_codes_hint') }}</div>
+      </div>
+    </div>
+    <template #footer>
+      <el-button @click="showTotpDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" :loading="totpLoading" @click="confirmTotpSetup">{{ totpBackupCodes.length ? t('common.confirm') : t('keys.enable_totp') }}</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- Disable TOTP Dialog -->
+  <el-dialog v-model="showDisableTotp" :title="t('keys.disable_totp')" width="420px">
+    <el-form @submit.prevent="disableTotp">
+      <el-form-item :label="t('keys.totp_code')">
+        <el-input v-model="totpCode" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="showDisableTotp = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="danger" :loading="totpLoading" @click="disableTotp">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  
+  <!-- Password Prompt Dialog -->
+  <el-dialog v-model="showPasswordPrompt" :title="t('keys.enter_password')" :close-on-click-modal="false">
+    <el-form @submit.prevent="verifyE2EEPassword">
+      <el-form-item :label="t('keys.password')">
+        <el-input v-model="password" type="password" show-password />
+      </el-form-item>
+      <el-alert type="warning" :closable="false" class="mb-4">
+        {{ t('keys.password_required_to_decrypt') }}
+      </el-alert>
+    </el-form>
+    <template #footer>
+      <el-button type="primary" @click="verifyE2EEPassword">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  
+  <!-- E2EE Setup Dialog -->
+  <el-dialog v-model="showE2EESetup" :title="t('keys.setup_encryption')">
+    <el-form @submit.prevent="setupE2EE">
+      <el-alert type="warning" :closable="false" class="mb-4">
+        <strong>{{ t('keys.password_warning_title') }}</strong><br>
+        {{ t('keys.password_warning_message') }}
+      </el-alert>
+      <el-form-item :label="t('keys.new_password')">
+        <el-input v-model="newPassword" type="password" show-password />
+      </el-form-item>
+      <el-form-item :label="t('keys.confirm_password')">
+        <el-input v-model="confirmPassword" type="password" show-password />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="showE2EESetup = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="setupE2EE" :loading="loading">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  
+  <!-- Add API Key Dialog -->
+  <el-dialog v-model="showAddKeyDialog" :title="t('keys.add_key')">
+    <el-form @submit.prevent="addAPIKey">
+      <el-form-item :label="t('keys.provider')">
+        <el-select v-model="newKey.provider_id" class="w-full">
+          <el-option v-for="provider in getAllProviders()" :key="provider.id" :label="provider.name" :value="provider.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item :label="t('keys.api_key')">
+        <el-input v-model="newKey.api_key" type="textarea" />
+      </el-form-item>
+      <el-form-item :label="t('keys.note')">
+        <el-input v-model="newKey.note" />
+      </el-form-item>
+      <el-alert v-if="e2eeEnabled" type="info" :closable="false">
+        {{ t('keys.key_will_be_encrypted') }}
+      </el-alert>
+    </el-form>
+    <template #footer>
+      <el-button @click="showAddKeyDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="addAPIKey" :loading="loading">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  
+  <!-- Add Provider Dialog -->
+  <el-dialog v-model="showAddProviderDialog" :title="t('keys.add_provider')" width="600px">
+    <el-form @submit.prevent="addProvider" label-width="140px">
+      <el-form-item :label="t('keys.provider_name')" required>
+        <el-input v-model="newProvider.name" />
+      </el-form-item>
+      <el-form-item :label="t('keys.website')">
+        <el-input v-model="newProvider.website" placeholder="https://example.com" />
+      </el-form-item>
+      
+      <el-divider>{{ t('keys.api_base_urls') }}</el-divider>
+      
+      <el-form-item label="OpenAI Base URL">
+        <el-input v-model="newProvider.openai_base_url" placeholder="https://api.openai.com/v1" />
+      </el-form-item>
+      <el-form-item label="Gemini Base URL">
+        <el-input v-model="newProvider.gemini_base_url" placeholder="https://generativelanguage.googleapis.com/v1" />
+      </el-form-item>
+      <el-form-item label="Claude Base URL">
+        <el-input v-model="newProvider.claude_base_url" placeholder="https://api.anthropic.com/v1" />
+      </el-form-item>
+      
+      <el-divider>{{ t('keys.submission') }}</el-divider>
+      
+      <el-form-item :label="t('keys.submit_for_review')">
+        <el-switch v-model="newProvider.submit_for_review" />
+      </el-form-item>
+      
+      <template v-if="newProvider.submit_for_review">
+        <el-form-item :label="t('keys.proof_type')">
+          <el-radio-group v-model="newProvider.proof_type">
+            <el-radio value="text">{{ t('keys.proof_text') }}</el-radio>
+            <el-radio value="url">{{ t('keys.proof_url') }}</el-radio>
+            <el-radio value="image">{{ t('keys.proof_image') }}</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item :label="t('keys.proof_content')">
+          <el-input 
+            v-model="newProvider.proof_content" 
+            :type="newProvider.proof_type === 'text' ? 'textarea' : 'text'"
+            :placeholder="newProvider.proof_type === 'url' ? 'https://docs.example.com/pricing' : ''"
+          />
+        </el-form-item>
       </template>
-    </el-dialog>
-    
-    <!-- Password Prompt Dialog -->
-    <el-dialog v-model="showPasswordPrompt" :title="t('keys.enter_password')" :close-on-click-modal="false">
-      <el-form @submit.prevent="verifyE2EEPassword">
-        <el-form-item :label="t('keys.password')">
-          <el-input v-model="password" type="password" show-password />
-        </el-form-item>
-        <el-alert type="warning" :closable="false" class="mb-4">
-          {{ t('keys.password_required_to_decrypt') }}
-        </el-alert>
-      </el-form>
-      <template #footer>
-        <el-button type="primary" @click="verifyE2EEPassword">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- E2EE Setup Dialog -->
-    <el-dialog v-model="showE2EESetup" :title="t('keys.setup_encryption')">
-      <el-form @submit.prevent="setupE2EE">
-        <el-alert type="warning" :closable="false" class="mb-4">
-          <strong>{{ t('keys.password_warning_title') }}</strong><br>
-          {{ t('keys.password_warning_message') }}
-        </el-alert>
-        <el-form-item :label="t('keys.new_password')">
-          <el-input v-model="newPassword" type="password" show-password />
-        </el-form-item>
-        <el-form-item :label="t('keys.confirm_password')">
-          <el-input v-model="confirmPassword" type="password" show-password />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showE2EESetup = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="setupE2EE" :loading="loading">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- Add API Key Dialog -->
-    <el-dialog v-model="showAddKeyDialog" :title="t('keys.add_key')">
-      <el-form @submit.prevent="addAPIKey">
-        <el-form-item :label="t('keys.provider')">
-          <el-select v-model="newKey.provider_id" class="w-full">
-            <el-option v-for="provider in getAllProviders()" :key="provider.id" :label="provider.name" :value="provider.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item :label="t('keys.api_key')">
-          <el-input v-model="newKey.api_key" type="textarea" />
-        </el-form-item>
-        <el-form-item :label="t('keys.note')">
-          <el-input v-model="newKey.note" />
-        </el-form-item>
-        <el-alert v-if="e2eeEnabled" type="info" :closable="false">
-          {{ t('keys.key_will_be_encrypted') }}
-        </el-alert>
-      </el-form>
-      <template #footer>
-        <el-button @click="showAddKeyDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="addAPIKey" :loading="loading">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- Add Provider Dialog -->
-    <el-dialog v-model="showAddProviderDialog" :title="t('keys.add_provider')" width="600px">
-      <el-form @submit.prevent="addProvider" label-width="140px">
-        <el-form-item :label="t('keys.provider_name')" required>
-          <el-input v-model="newProvider.name" />
-        </el-form-item>
-        <el-form-item :label="t('keys.website')">
-          <el-input v-model="newProvider.website" placeholder="https://example.com" />
-        </el-form-item>
-        
-        <el-divider>{{ t('keys.api_base_urls') }}</el-divider>
-        
-        <el-form-item label="OpenAI Base URL">
-          <el-input v-model="newProvider.openai_base_url" placeholder="https://api.openai.com/v1" />
-        </el-form-item>
-        <el-form-item label="Gemini Base URL">
-          <el-input v-model="newProvider.gemini_base_url" placeholder="https://generativelanguage.googleapis.com/v1" />
-        </el-form-item>
-        <el-form-item label="Claude Base URL">
-          <el-input v-model="newProvider.claude_base_url" placeholder="https://api.anthropic.com/v1" />
-        </el-form-item>
-        
-        <el-divider>{{ t('keys.submission') }}</el-divider>
-        
-        <el-form-item :label="t('keys.submit_for_review')">
-          <el-switch v-model="newProvider.submit_for_review" />
-        </el-form-item>
-        
-        <template v-if="newProvider.submit_for_review">
-          <el-form-item :label="t('keys.proof_type')">
-            <el-radio-group v-model="newProvider.proof_type">
-              <el-radio value="text">{{ t('keys.proof_text') }}</el-radio>
-              <el-radio value="url">{{ t('keys.proof_url') }}</el-radio>
-              <el-radio value="image">{{ t('keys.proof_image') }}</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item :label="t('keys.proof_content')">
-            <el-input 
-              v-model="newProvider.proof_content" 
-              :type="newProvider.proof_type === 'text' ? 'textarea' : 'text'"
-              :placeholder="newProvider.proof_type === 'url' ? 'https://docs.example.com/pricing' : ''"
-            />
-          </el-form-item>
-        </template>
-        
-        <el-alert v-if="!newProvider.submit_for_review" type="info" :closable="false">
-          {{ t('keys.private_provider_notice') }}
-        </el-alert>
-      </el-form>
-      <template #footer>
-        <el-button @click="showAddProviderDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="addProvider" :loading="loading">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-    
-    <!-- Edit Provider Dialog -->
-    <el-dialog v-model="showEditProviderDialog" :title="t('keys.edit_provider')" width="600px">
-      <el-form @submit.prevent="updateProvider" v-if="editingProvider" label-width="140px">
-        <el-form-item :label="t('keys.provider_name')">
-          <el-input v-model="editingProvider.name" />
-        </el-form-item>
-        <el-form-item :label="t('keys.website')">
-          <el-input v-model="editingProvider.website" />
-        </el-form-item>
-        
-        <el-divider>{{ t('keys.api_base_urls') }}</el-divider>
-        
-        <el-form-item label="OpenAI Base URL">
-          <el-input v-model="editingProvider.openai_base_url" />
-        </el-form-item>
-        <el-form-item label="Gemini Base URL">
-          <el-input v-model="editingProvider.gemini_base_url" />
-        </el-form-item>
-        <el-form-item label="Claude Base URL">
-          <el-input v-model="editingProvider.claude_base_url" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showEditProviderDialog = false; editingProvider = null">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="updateProvider" :loading="loading">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-  </div>
+      
+      <el-alert v-if="!newProvider.submit_for_review" type="info" :closable="false">
+        {{ t('keys.private_provider_notice') }}
+      </el-alert>
+    </el-form>
+    <template #footer>
+      <el-button @click="showAddProviderDialog = false">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="addProvider" :loading="loading">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
+  
+  <!-- Edit Provider Dialog -->
+  <el-dialog v-model="showEditProviderDialog" :title="t('keys.edit_provider')" width="600px">
+    <el-form @submit.prevent="updateProvider" v-if="editingProvider" label-width="140px">
+      <el-form-item :label="t('keys.provider_name')">
+        <el-input v-model="editingProvider.name" />
+      </el-form-item>
+      <el-form-item :label="t('keys.website')">
+        <el-input v-model="editingProvider.website" />
+      </el-form-item>
+      
+      <el-divider>{{ t('keys.api_base_urls') }}</el-divider>
+      
+      <el-form-item label="OpenAI Base URL">
+        <el-input v-model="editingProvider.openai_base_url" />
+      </el-form-item>
+      <el-form-item label="Gemini Base URL">
+        <el-input v-model="editingProvider.gemini_base_url" />
+      </el-form-item>
+      <el-form-item label="Claude Base URL">
+        <el-input v-model="editingProvider.claude_base_url" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="showEditProviderDialog = false; editingProvider = null">{{ t('common.cancel') }}</el-button>
+      <el-button type="primary" @click="updateProvider" :loading="loading">{{ t('common.confirm') }}</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped>

@@ -143,6 +143,8 @@
         "failed_fetch_settings": "加载设置失败",
         "settings_saved": "设置已保存",
         "failed_save_settings": "保存设置失败",
+        "last_saved_at": "上次保存于 {time}",
+        "not_saved_yet": "还没有保存任何更改",
         "failed_fetch_users": "加载用户失败",
         "role_updated": "角色已更新",
         "failed_update_role": "更新角色失败"
@@ -311,6 +313,27 @@
         "totp_disabled": "TOTP 已禁用",
         "invalid_totp": "无效的 TOTP 码",
         "failed_to_load_totp": "启动 TOTP 设置失败"
+    },
+    "account": {
+        "password_heading": "密码与恢复",
+        "new_password": "新密码",
+        "email_code": "邮箱验证码",
+        "request_password_code": "发送邮箱验证码",
+        "password_hint": "请使用至少 8 位字符，需邮箱验证码或 TOTP 才能保存更改。",
+        "verification_required": "请提供邮箱验证码或 TOTP。",
+        "password_updated": "密码已更新",
+        "email_heading": "邮箱地址",
+        "new_email": "新邮箱",
+        "request_email_code": "向新邮箱发送验证码",
+        "update_email": "更新邮箱",
+        "email_updated": "邮箱已更新",
+        "code_sent": "验证码已发送",
+        "enter_new_email": "请先输入新的邮箱",
+        "verify_new_email": "已向新邮箱发送验证链接。",
+        "totp_code": "TOTP 验证码",
+        "totp_optional": "如使用邮箱验证码可不填",
+        "current_email": "当前邮箱",
+        "email_hint": "通过邮箱验证码或 TOTP 验证此变更。"
     },
     "common": {
         "actions": "操作",

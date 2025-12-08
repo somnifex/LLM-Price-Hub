@@ -36,28 +36,31 @@ onMounted(fetchUsers)
 </script>
 
 <template>
-  <el-card>
-    <template #header>
-      <div class="flex justify-between items-center">
-        <span class="text-xl font-bold">{{ t('admin.user_management') }}</span>
+  <div class="panel p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="section-kicker mb-1">{{ t('admin.user_management') }}</p>
+        <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.user_management') }}</h3>
+        <p class="muted-subtitle">{{ t('admin.role') }}</p>
       </div>
-    </template>
-    <el-table :data="users" v-loading="loading">
-      <el-table-column prop="id" :label="t('admin.id')" width="60" />
+      <el-tag type="info" effect="plain">{{ t('admin.user_management') }}</el-tag>
+    </div>
+    <el-table :data="users" v-loading="loading" class="rounded-xl overflow-hidden">
+      <el-table-column prop="id" :label="t('admin.id')" width="80" />
       <el-table-column prop="email" :label="t('admin.email')" />
-      <el-table-column prop="role" :label="t('admin.role')">
+      <el-table-column prop="role" :label="t('admin.role')" width="160">
          <template #default="{ row }">
              <el-tag :type="row.role === 'super_admin' ? 'danger' : row.role === 'admin' ? 'warning' : 'info'">{{ row.role }}</el-tag>
          </template>
       </el-table-column>
       <el-table-column :label="t('admin.actions')" v-if="authStore.isSuperAdmin">
         <template #default="{ row }">
-           <div v-if="row.role !== 'super_admin'">
+           <div v-if="row.role !== 'super_admin'" class="flex gap-2">
                <el-button size="small" @click="updateUserRole(row.id, 'admin')" v-if="row.role !== 'admin'">{{ t('admin.make_admin') }}</el-button>
                <el-button size="small" @click="updateUserRole(row.id, 'user')" v-if="row.role !== 'user'">{{ t('admin.demote_user') }}</el-button>
            </div>
         </template>
       </el-table-column>
     </el-table>
-  </el-card>
+  </div>
 </template>

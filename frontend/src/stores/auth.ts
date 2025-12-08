@@ -57,5 +57,5 @@ export const useAuthStore = defineStore('auth', () => {
         window.location.href = '/'
     }
 
-    return { token, user, isAuthenticated, isAdmin, isSuperAdmin, login, logout }
+    return { token, user, isAuthenticated, isAdmin, isSuperAdmin, login, logout, setUser }
 })

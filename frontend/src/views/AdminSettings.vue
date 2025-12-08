@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import api from '@/api'
 import { useI18n } from 'vue-i18n'
@@ -27,6 +27,9 @@ interface Settings {
 
 const settings = ref<Settings>({})
 const loading = ref(false)
+const saving = ref(false)
+const saveStatus = ref<'idle' | 'success' | 'error'>('idle')
+const lastSavedAt = ref<string | null>(null)
 
 const providerOptions = [
     { label: 'ExchangeRate-API (Free/Pro)', value: 'exchangerate-api' },
@@ -86,108 +89,156 @@ const fetchSettings = async () => {
 }
 
 const saveSettings = async () => {
+    saving.value = true
+    saveStatus.value = 'idle'
     try {
         await api.put('/admin/settings', settings.value)
+        saveStatus.value = 'success'
+        lastSavedAt.value = new Date().toISOString()
         ElMessage.success(t('admin.settings_saved'))
     } catch (e) {
+        saveStatus.value = 'error'
         ElMessage.error(t('admin.failed_save_settings'))
+    } finally {
+        saving.value = false
     }
 }
 
 onMounted(fetchSettings)
+
+const savedText = computed(() => {
+    if (!lastSavedAt.value) return ''
+    return new Date(lastSavedAt.value).toLocaleString()
+})
 </script>
 
 <template>
-  <el-card>
-    <template #header>
-      <div class="flex justify-between items-center">
-        <span class="text-xl font-bold">{{ t('admin.settings') }}</span>
-      </div>
-    </template>
-    <div class="max-w-xl">
-    <el-form label-position="top" v-loading="loading">
-        <el-form-item :label="t('admin.site_name')">
+  <div class="space-y-6" v-loading="loading">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="panel p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="section-kicker mb-1">{{ t('admin.settings') }}</p>
+            <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.site_name') }}</h3>
+            <p class="muted-subtitle">{{ t('admin.maintenance') }}</p>
+          </div>
+          <el-tag type="success" effect="plain">{{ t('admin.settings') }}</el-tag>
+        </div>
+        <el-form label-position="top">
+          <el-form-item :label="t('admin.site_name')">
             <el-input v-model="settings.site_name" />
+          </el-form-item>
+        <el-form-item :label="t('admin.home_display_mode')">
+            <el-select v-model="settings.home_display_mode">
+                <el-option v-for="opt in displayOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            </el-select>
+            <p class="text-xs text-secondary-500 mt-1">{{ t('admin.home_display_hint') }}</p>
         </el-form-item>
-        <el-form-item :label="t('admin.maintenance')">
-            <el-switch v-model="settings.maintenance_mode" active-value="true" inactive-value="false" />
-        </el-form-item>
-
-        <div class="my-6 border-t border-gray-200 pt-6">
-            <h4 class="text-lg font-bold mb-4">{{ t('admin.smtp_config') }}</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <el-form-item :label="t('admin.smtp_host')">
-                  <el-input v-model="settings.smtp_host" placeholder="smtp.example.com" />
-              </el-form-item>
-              <el-form-item :label="t('admin.smtp_port')">
-                  <el-input v-model="settings.smtp_port" type="number" />
-              </el-form-item>
+          <el-form-item :label="t('admin.maintenance')">
+            <div class="flex items-center justify-between w-full">
+              <span class="muted-subtitle">{{ t('admin.maintenance') }}</span>
+              <el-switch v-model="settings.maintenance_mode" active-value="true" inactive-value="false" />
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <el-form-item :label="t('admin.smtp_username')">
-                  <el-input v-model="settings.smtp_username" />
-              </el-form-item>
-              <el-form-item :label="t('admin.smtp_password')">
-                  <el-input v-model="settings.smtp_password" type="password" show-password />
-              </el-form-item>
+          </el-form-item>
+          <el-form-item :label="t('admin.force_email_verification')">
+            <div class="flex items-center justify-between w-full">
+              <span class="muted-subtitle">{{ t('admin.force_email_verification') }}</span>
+              <el-switch v-model="settings.force_email_verification" active-value="true" inactive-value="false" />
             </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <el-form-item :label="t('admin.smtp_sender')">
-                                    <el-input v-model="settings.smtp_sender" placeholder="no-reply@example.com" />
-                            </el-form-item>
-                            <el-form-item :label="t('admin.smtp_tls_ssl')">
-                                <div class="flex items-center gap-6">
-                                    <div class="flex items-center gap-2">
-                                        <el-switch v-model="settings.smtp_use_tls" active-value="true" inactive-value="false" />
-                                        <span class="text-sm text-gray-600">TLS</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <el-switch v-model="settings.smtp_use_ssl" active-value="true" inactive-value="false" />
-                                        <span class="text-sm text-gray-600">SSL</span>
-                                    </div>
-                                </div>
-                            </el-form-item>
-                        </div>
-            <el-alert type="info" :closable="false" class="mb-2">
-              {{ t('admin.smtp_hint') }}
-            </el-alert>
-            <el-form-item :label="t('admin.force_email_verification')">
-                <el-switch v-model="settings.force_email_verification" active-value="true" inactive-value="false" />
-            </el-form-item>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <div class="panel p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="section-kicker mb-1">{{ t('admin.exchange_config') }}</p>
+            <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.provider') }}</h3>
+            <p class="muted-subtitle">{{ t('admin.api_url') }}</p>
+          </div>
+          <el-tag type="warning" effect="plain">{{ t('admin.interval') }}</el-tag>
         </div>
-
-        <div class="my-6 border-t border-gray-200 pt-6">
-            <h4 class="text-lg font-bold mb-4">{{ t('admin.exchange_config') }}</h4>
-            
-            <el-form-item :label="t('admin.provider')">
-                <el-select v-model="settings.exchange_rate_provider" @change="onProviderChange" :placeholder="t('admin.select_provider')">
-                    <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-                </el-select>
-            </el-form-item>
-
-            <el-form-item :label="t('admin.api_url')">
-                <el-input v-model="settings.exchange_rate_url" placeholder="https://api.exchangerate-api.com/v4/latest/USD" />
-            </el-form-item>
-            <el-form-item :label="t('admin.api_key')">
-                <el-input v-model="settings.exchange_rate_key" type="password" show-password />
-            </el-form-item>
-            <el-form-item :label="t('admin.interval')">
-                <el-input v-model="settings.exchange_rate_interval_minutes" type="number" />
-            </el-form-item>
-        </div>
-
-        <div class="my-6 border-t border-gray-200 pt-6">
-            <h4 class="text-lg font-bold mb-4">{{ t('admin.home_display') }}</h4>
-            <el-form-item :label="t('admin.home_display_mode')">
-                <el-select v-model="settings.home_display_mode">
-                    <el-option v-for="opt in displayOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-                </el-select>
-            </el-form-item>
-            <el-alert type="info" :closable="false">{{ t('admin.home_display_hint') }}</el-alert>
-        </div>
-
-        <el-button type="primary" @click="saveSettings">{{ t('admin.save') }}</el-button>
-    </el-form>
+        <el-form label-position="top">
+          <el-form-item :label="t('admin.provider')">
+            <el-select v-model="settings.exchange_rate_provider" @change="onProviderChange" :placeholder="t('admin.select_provider')">
+              <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="t('admin.api_url')">
+            <el-input v-model="settings.exchange_rate_url" placeholder="https://api.exchangerate-api.com/v4/latest/USD" />
+          </el-form-item>
+          <el-form-item :label="t('admin.api_key')">
+            <el-input v-model="settings.exchange_rate_key" type="password" show-password />
+          </el-form-item>
+          <el-form-item :label="t('admin.interval')">
+            <el-input v-model="settings.exchange_rate_interval_minutes" type="number" />
+          </el-form-item>
+        </el-form>
+      </div>
     </div>
-  </el-card>
+
+    <div class="panel p-6 space-y-4">
+      <div>
+        <p class="section-kicker mb-1">{{ t('admin.smtp_config') }}</p>
+        <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.smtp_config') }}</h3>
+        <p class="muted-subtitle">{{ t('admin.smtp_hint') }}</p>
+      </div>
+      <el-form label-position="top">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <el-form-item :label="t('admin.smtp_host')">
+            <el-input v-model="settings.smtp_host" placeholder="smtp.example.com" />
+          </el-form-item>
+          <el-form-item :label="t('admin.smtp_port')">
+            <el-input v-model="settings.smtp_port" type="number" />
+          </el-form-item>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <el-form-item :label="t('admin.smtp_username')">
+            <el-input v-model="settings.smtp_username" />
+          </el-form-item>
+          <el-form-item :label="t('admin.smtp_password')">
+            <el-input v-model="settings.smtp_password" type="password" show-password />
+          </el-form-item>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <el-form-item :label="t('admin.smtp_sender')">
+            <el-input v-model="settings.smtp_sender" placeholder="no-reply@example.com" />
+          </el-form-item>
+          <el-form-item :label="t('admin.smtp_tls_ssl')">
+            <div class="flex items-center gap-6">
+              <div class="flex items-center gap-2">
+                <el-switch v-model="settings.smtp_use_tls" active-value="true" inactive-value="false" />
+                <span class="text-sm text-gray-600">TLS</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <el-switch v-model="settings.smtp_use_ssl" active-value="true" inactive-value="false" />
+                <span class="text-sm text-gray-600">SSL</span>
+              </div>
+            </div>
+          </el-form-item>
+        </div>
+      </el-form>
+    </div>
+
+    <div class="panel p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <p class="section-kicker mb-1">{{ t('admin.settings') }}</p>
+        <p v-if="saveStatus === 'success' && savedText" class="muted-subtitle">
+          {{ t('admin.last_saved_at', { time: savedText }) }}
+        </p>
+        <p v-else class="muted-subtitle">{{ t('admin.not_saved_yet') }}</p>
+      </div>
+      <div class="flex items-center gap-3 justify-end">
+        <el-tag v-if="saveStatus === 'success'" type="success" effect="plain">
+          {{ t('admin.settings_saved') }}
+        </el-tag>
+        <el-tag v-else-if="saveStatus === 'error'" type="danger" effect="plain">
+          {{ t('admin.failed_save_settings') }}
+        </el-tag>
+        <el-button type="primary" size="large" :loading="saving" @click="saveSettings">
+          {{ t('admin.save') }}
+        </el-button>
+      </div>
+    </div>
+  </div>
 </template>

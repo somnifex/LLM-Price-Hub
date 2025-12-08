@@ -117,6 +117,19 @@ class EmailVerificationToken(SQLModel, table=True):
     user: Optional[User] = Relationship()
 
 
+class UserActionToken(SQLModel, table=True):
+    """One-time verification codes for sensitive account actions."""
+
+    __tablename__ = "user_action_tokens"
+    token: str = Field(primary_key=True, max_length=64)
+    user_id: int = Field(foreign_key="users.id")
+    action: str = Field(max_length=30)  # password_reset, email_change
+    new_email: Optional[str] = Field(default=None, max_length=120)
+    expires_at: datetime = Field()
+    used: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class SystemSetting(SQLModel, table=True):
     __tablename__ = "system_settings"
     key: str = Field(primary_key=True, max_length=50)

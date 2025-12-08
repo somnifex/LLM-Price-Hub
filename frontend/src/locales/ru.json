@@ -145,7 +145,9 @@
         "failed_save_settings": "Ошибка сохранения",
         "failed_fetch_users": "Ошибка загрузки пользователей",
         "role_updated": "Роль обновлена",
-        "failed_update_role": "Ошибка обновления роли"
+        "failed_update_role": "Ошибка обновления роли",
+        "last_saved_at": "Last saved at {time}",
+        "not_saved_yet": "No changes have been saved yet"
     },
     "auth": {
         "login": "Вход",
@@ -319,5 +321,26 @@
         "cancel": "Отмена",
         "confirm": "Подтвердить",
         "warning": "Предупреждение"
+    },
+    "account": {
+        "password_heading": "Password & recovery",
+        "new_password": "New password",
+        "email_code": "Email code",
+        "request_password_code": "Send email code",
+        "password_hint": "Use at least 8 characters. Email code or TOTP is required to save changes.",
+        "verification_required": "Provide an email code or TOTP code to continue.",
+        "password_updated": "Password updated",
+        "email_heading": "Email address",
+        "new_email": "New email",
+        "request_email_code": "Send code to new email",
+        "update_email": "Update email",
+        "email_updated": "Email updated",
+        "code_sent": "Verification code sent",
+        "enter_new_email": "Please enter a new email first",
+        "verify_new_email": "We sent a verification link to your new email.",
+        "totp_code": "TOTP code",
+        "totp_optional": "TOTP (optional if you use email code)",
+        "current_email": "Current email",
+        "email_hint": "Verify this change with a code sent to your inbox or your TOTP app."
     }
 }
