@@ -36,6 +36,14 @@ class StandardModelIn(BaseModel):
     rank_hint: Optional[int] = None
 
 
+class StandardModelBulkIn(BaseModel):
+    items: list[StandardModelIn]
+
+
+class StandardModelBulkDelete(BaseModel):
+    ids: list[int]
+
+
 class UserRoleUpdate(BaseModel):
     role: str
 
@@ -77,6 +85,34 @@ def _recompute_provider_score(session: Session, provider_id: int):
     if provider:
         provider.avg_score = sum(ratings) / len(ratings) if ratings else 0.0
         session.add(provider)
+
+
+def _normalize_standard_model_payload(model_in: StandardModelIn) -> dict:
+    """Sanitize and coerce model fields for creation/update flows."""
+
+    def _to_optional_float(value):
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    name = (model_in.name or "").strip()
+    if not name:
+        raise ValueError("Model name is required")
+
+    vendor = (model_in.vendor or "").strip() or None
+
+    return {
+        "name": name,
+        "vendor": vendor,
+        "official_currency": model_in.official_currency or "USD",
+        "official_input_price": _to_optional_float(model_in.official_input_price),
+        "official_output_price": _to_optional_float(model_in.official_output_price),
+        "is_featured": bool(model_in.is_featured),
+        "rank_hint": _to_optional_float(model_in.rank_hint),
+    }
 
 
 @router.get("/pending")
@@ -160,7 +196,12 @@ async def admin_create_model(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_admin),
 ):
-    model = StandardModel(**model_in.dict())
+    try:
+        payload = _normalize_standard_model_payload(model_in)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    model = StandardModel(**payload)
     session.add(model)
     session.commit()
     session.refresh(model)
@@ -178,13 +219,52 @@ async def admin_update_model(
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
 
-    for k, v in model_in.dict().items():
+    try:
+        payload = _normalize_standard_model_payload(model_in)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    for k, v in payload.items():
         setattr(model, k, v)
 
     session.add(model)
     session.commit()
     session.refresh(model)
     return model
+
+
+@router.post("/models/bulk")
+async def admin_bulk_upsert_models(
+    bulk: StandardModelBulkIn,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    stats = {"created": 0, "updated": 0, "skipped": 0, "errors": []}
+
+    for idx, item in enumerate(bulk.items):
+        try:
+            payload = _normalize_standard_model_payload(item)
+        except ValueError as exc:
+            stats["skipped"] += 1
+            stats["errors"].append({"index": idx, "reason": str(exc)})
+            continue
+
+        existing = session.exec(
+            select(StandardModel).where(StandardModel.name == payload["name"])
+        ).first()
+        if existing:
+            for k, v in payload.items():
+                setattr(existing, k, v)
+            session.add(existing)
+            stats["updated"] += 1
+        else:
+            model = StandardModel(**payload)
+            session.add(model)
+            stats["created"] += 1
+
+    session.commit()
+    stats["total"] = len(bulk.items)
+    return stats
 
 
 @router.delete("/models/{model_id}")
@@ -196,9 +276,43 @@ async def admin_delete_model(
     model = session.get(StandardModel, model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Model not found")
+
+    prices = session.exec(
+        select(ModelPrice).where(ModelPrice.standard_model_id == model_id)
+    ).all()
+    for price in prices:
+        session.delete(price)
     session.delete(model)
     session.commit()
     return {"message": "Model deleted"}
+
+
+@router.delete("/models/bulk")
+async def admin_bulk_delete_models(
+    payload: StandardModelBulkDelete,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    deleted = 0
+    skipped = 0
+
+    for model_id in payload.ids:
+        model = session.get(StandardModel, model_id)
+        if not model:
+            skipped += 1
+            continue
+
+        prices = session.exec(
+            select(ModelPrice).where(ModelPrice.standard_model_id == model_id)
+        ).all()
+        for price in prices:
+            session.delete(price)
+
+        session.delete(model)
+        deleted += 1
+
+    session.commit()
+    return {"deleted": deleted, "skipped": skipped, "total": len(payload.ids)}
 
 
 # ============ Standard Model Requests ============

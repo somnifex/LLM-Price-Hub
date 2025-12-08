@@ -114,15 +114,28 @@ const savedText = computed(() => {
 
 <template>
   <div class="space-y-6" v-loading="loading">
+    <div class="page-hero p-6 md:p-7">
+      <div class="section-header">
+        <div>
+          <p class="section-kicker mb-1">{{ t('admin.settings') }}</p>
+          <h2 class="text-2xl font-bold text-secondary-900">{{ t('admin.settings_header') }}</h2>
+          <p class="muted-subtitle">{{ t('admin.settings_overview') }}</p>
+        </div>
+        <div class="action-row">
+          <el-tag type="success" effect="light">{{ t('admin.site_block') }}</el-tag>
+          <el-tag type="warning" effect="light">{{ t('admin.smtp_config') }}</el-tag>
+        </div>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div class="panel p-6 space-y-4">
-        <div class="flex items-center justify-between">
+        <div class="section-header">
           <div>
-            <p class="section-kicker mb-1">{{ t('admin.settings') }}</p>
+            <p class="section-kicker mb-1">{{ t('admin.site_block') }}</p>
             <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.site_name') }}</h3>
-            <p class="muted-subtitle">{{ t('admin.maintenance') }}</p>
+            <p class="muted-subtitle">{{ t('admin.site_block_hint') }}</p>
           </div>
-          <el-tag type="success" effect="plain">{{ t('admin.settings') }}</el-tag>
         </div>
         <el-form label-position="top">
           <el-form-item :label="t('admin.site_name')">
@@ -150,13 +163,12 @@ const savedText = computed(() => {
       </div>
 
       <div class="panel p-6 space-y-4">
-        <div class="flex items-center justify-between">
+        <div class="section-header">
           <div>
             <p class="section-kicker mb-1">{{ t('admin.exchange_config') }}</p>
             <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.provider') }}</h3>
-            <p class="muted-subtitle">{{ t('admin.api_url') }}</p>
+            <p class="muted-subtitle">{{ t('admin.exchange_hint') }}</p>
           </div>
-          <el-tag type="warning" effect="plain">{{ t('admin.interval') }}</el-tag>
         </div>
         <el-form label-position="top">
           <el-form-item :label="t('admin.provider')">
@@ -178,11 +190,17 @@ const savedText = computed(() => {
     </div>
 
     <div class="panel p-6 space-y-4">
-      <div>
-        <p class="section-kicker mb-1">{{ t('admin.smtp_config') }}</p>
-        <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.smtp_config') }}</h3>
-        <p class="muted-subtitle">{{ t('admin.smtp_hint') }}</p>
+      <div class="section-header">
+        <div>
+          <p class="section-kicker mb-1">{{ t('admin.smtp_config') }}</p>
+          <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.email_delivery') }}</h3>
+          <p class="muted-subtitle">{{ t('admin.smtp_hint') }}</p>
+        </div>
+        <el-tag type="info" effect="plain">{{ t('admin.smtp_tls_ssl') }}</el-tag>
       </div>
+      <el-alert :closable="false" type="info">
+        {{ t('admin.smtp_hint') }}
+      </el-alert>
       <el-form label-position="top">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <el-form-item :label="t('admin.smtp_host')">
@@ -228,7 +246,7 @@ const savedText = computed(() => {
         </p>
         <p v-else class="muted-subtitle">{{ t('admin.not_saved_yet') }}</p>
       </div>
-      <div class="flex items-center gap-3 justify-end">
+      <div class="action-row">
         <el-tag v-if="saveStatus === 'success'" type="success" effect="plain">
           {{ t('admin.settings_saved') }}
         </el-tag>

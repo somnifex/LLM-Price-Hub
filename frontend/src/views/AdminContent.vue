@@ -6,11 +6,23 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
+interface Model {
+  id: number;
+  name: string;
+  vendor?: string;
+  official_currency: string;
+  official_input_price?: number;
+  official_output_price?: number;
+  is_featured: boolean;
+  rank_hint?: number;
+  popularity_score: number;
+}
+
 // Pending data
 const pendingPrices = ref([])
 const pendingProviders = ref([])
 const pendingModels = ref([])
-const models = ref([])
+const models = ref<Model[]>([])
 
 // Loading states
 const pricesLoading = ref(false)
@@ -47,6 +59,11 @@ const modelFormDefaults = {
 const newModel = ref({ ...modelFormDefaults })
 const editingModel = ref<any | null>(null)
 const editDialogVisible = ref(false)
+const bulkText = ref('')
+const bulkImporting = ref(false)
+const bulkDeleteLoading = ref(false)
+const selectedModelIds = ref<number[]>([])
+const selectedCount = computed(() => selectedModelIds.value.length)
 
 const resetNewModel = () => {
     newModel.value = { ...modelFormDefaults }
@@ -67,6 +84,100 @@ const normalizeModelPayload = (payload: any) => {
         official_output_price: toNumberOrNull(payload.official_output_price),
         is_featured: Boolean(payload.is_featured),
         rank_hint: toNumberOrNull(payload.rank_hint),
+    }
+}
+
+const selectionChanged = (rows: any[]) => {
+    selectedModelIds.value = rows.map((row: any) => row.id)
+}
+
+const parseBulkModels = () => {
+    const lines = bulkText.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+
+    if (!lines.length) {
+        throw new Error(t('admin.bulk_import_empty'))
+    }
+
+    const truthy = (value: any) => {
+        if (!value) return false
+        return ['1', 'true', 'yes', 'y', 'on'].includes(String(value).toLowerCase())
+    }
+    const toNumber = (value: any) => {
+        if (value === undefined || value === null || value === '') return null
+        const num = Number(value)
+        return Number.isNaN(num) ? null : num
+    }
+
+    return lines.map((line, idx) => {
+        const parts = line.split(/[,|\t]/).map(p => p.trim())
+        const [name, vendor, currency, input, output, featured, rank] = parts
+        if (!name) {
+            throw new Error(t('admin.bulk_import_format_error', { line: idx + 1 }))
+        }
+        return {
+            name,
+            vendor: vendor || null,
+            official_currency: currency || 'USD',
+            official_input_price: toNumber(input),
+            official_output_price: toNumber(output),
+            is_featured: truthy(featured),
+            rank_hint: toNumber(rank),
+        }
+    })
+}
+
+const bulkImportModels = async () => {
+    let items: any[] = []
+    try {
+        items = parseBulkModels()
+    } catch (err: any) {
+        ElMessage.error(err.message || t('admin.action_failed'))
+        return
+    }
+
+    bulkImporting.value = true
+    try {
+        const res = await api.post('/admin/models/bulk', { items })
+        const created = res.data?.created || 0
+        const updated = res.data?.updated || 0
+        ElMessage.success(t('admin.bulk_import_result', { created, updated }))
+        bulkText.value = ''
+        fetchModels()
+    } catch (e) {
+        ElMessage.error(t('admin.action_failed'))
+    } finally {
+        bulkImporting.value = false
+    }
+}
+
+const deleteSelectedModels = async () => {
+    if (!selectedModelIds.value.length) {
+        ElMessage.info(t('admin.no_models_selected'))
+        return
+    }
+    try {
+        await ElMessageBox.confirm(
+            t('admin.confirm_bulk_delete', { count: selectedModelIds.value.length }),
+            t('common.warning'),
+            { type: 'warning' }
+        )
+    } catch (e: any) {
+        if (e === 'cancel' || e?.action === 'cancel') return
+    }
+
+    bulkDeleteLoading.value = true
+    try {
+        await api.delete('/admin/models/bulk', { data: { ids: selectedModelIds.value } })
+        ElMessage.success(t('admin.bulk_delete_success'))
+        selectedModelIds.value = []
+        fetchModels()
+    } catch (e) {
+        ElMessage.error(t('admin.action_failed'))
+    } finally {
+        bulkDeleteLoading.value = false
     }
 }
 
@@ -212,6 +323,7 @@ const deleteModel = async (modelId: number) => {
         )
         await api.delete(`/admin/models/${modelId}`)
         ElMessage.success(t('admin.model_deleted'))
+        selectedModelIds.value = selectedModelIds.value.filter(id => id !== modelId)
         fetchModels()
     } catch (e: any) {
         if (e !== 'cancel') {
@@ -269,7 +381,7 @@ onMounted(() => {
         <!-- Pending Prices Tab -->
         <el-tab-pane :label="t('admin.pending_prices')" name="prices">
           <div class="space-y-3">
-            <div class="flex justify-between items-center">
+            <div class="section-header">
               <div>
                 <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.pending_price_submissions') }}</h3>
                 <p class="muted-subtitle">{{ t('admin.pending_prices') }}</p>
@@ -312,7 +424,7 @@ onMounted(() => {
         <!-- Pending Providers Tab -->
         <el-tab-pane :label="t('admin.pending_providers')" name="providers">
           <div class="space-y-3">
-            <div class="flex justify-between items-center">
+            <div class="section-header">
               <div>
                 <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.pending_provider_submissions') }}</h3>
                 <p class="muted-subtitle">{{ t('admin.pending_providers') }}</p>
@@ -361,7 +473,7 @@ onMounted(() => {
         <!-- Pending Model Requests Tab -->
         <el-tab-pane :label="t('admin.pending_models')" name="models">
           <div class="space-y-3">
-            <div class="flex justify-between items-center">
+            <div class="section-header">
               <div>
                 <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.pending_model_requests') }}</h3>
                 <p class="muted-subtitle">{{ t('admin.pending_models') }}</p>
@@ -393,59 +505,104 @@ onMounted(() => {
         <!-- Standard Models Management Tab -->
         <el-tab-pane :label="t('admin.manage_models')" name="manage-models">
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="panel p-5">
-              <div class="flex items-center justify-between mb-4">
-                <div>
-                  <p class="section-kicker mb-1">{{ t('admin.manage_models') }}</p>
-                  <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.add_new_model') }}</h3>
+            <div class="space-y-4">
+              <div class="panel p-5">
+                <div class="section-header">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('admin.manage_models') }}</p>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.add_new_model') }}</h3>
+                  </div>
+                  <el-tag type="success" effect="plain">{{ t('admin.is_featured') }}</el-tag>
                 </div>
-                <el-tag type="success" effect="plain">{{ t('admin.is_featured') }}</el-tag>
+                <el-form label-position="top" @submit.prevent>
+                  <el-form-item :label="t('admin.name')">
+                    <el-input v-model="newModel.name" :placeholder="t('admin.model_name_placeholder')" />
+                  </el-form-item>
+                  <el-form-item :label="t('admin.vendor')">
+                    <el-input v-model="newModel.vendor" :placeholder="t('admin.vendor_placeholder')" />
+                  </el-form-item>
+                  <el-form-item :label="t('admin.official_currency')">
+                    <el-select v-model="newModel.official_currency" filterable :loading="currenciesLoading">
+                      <el-option v-for="opt in currencyOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+                    </el-select>
+                  </el-form-item>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <el-form-item :label="t('admin.official_input_price')">
+                      <el-input v-model="newModel.official_input_price" type="number" />
+                    </el-form-item>
+                    <el-form-item :label="t('admin.official_output_price')">
+                      <el-input v-model="newModel.official_output_price" type="number" />
+                    </el-form-item>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <el-form-item :label="t('admin.is_featured')">
+                      <el-switch v-model="newModel.is_featured" />
+                    </el-form-item>
+                    <el-form-item :label="t('admin.rank_hint')">
+                      <el-input v-model="newModel.rank_hint" type="number" />
+                    </el-form-item>
+                  </div>
+                  <el-alert type="info" :closable="false" class="mb-2">{{ t('admin.featured_hint') }}</el-alert>
+                  <div class="flex gap-2">
+                    <el-button type="primary" :loading="modelSaving" :disabled="!newModel.name" @click="createModel">{{ t('admin.add') }}</el-button>
+                    <el-button @click="resetNewModel">{{ t('common.cancel') }}</el-button>
+                  </div>
+                </el-form>
               </div>
-              <el-form label-position="top" @submit.prevent>
-                <el-form-item :label="t('admin.name')">
-                  <el-input v-model="newModel.name" :placeholder="t('admin.model_name_placeholder')" />
-                </el-form-item>
-                <el-form-item :label="t('admin.vendor')">
-                  <el-input v-model="newModel.vendor" :placeholder="t('admin.vendor_placeholder')" />
-                </el-form-item>
-                <el-form-item :label="t('admin.official_currency')">
-                  <el-select v-model="newModel.official_currency" filterable :loading="currenciesLoading">
-                    <el-option v-for="opt in currencyOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-                  </el-select>
-                </el-form-item>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <el-form-item :label="t('admin.official_input_price')">
-                    <el-input v-model="newModel.official_input_price" type="number" />
-                  </el-form-item>
-                  <el-form-item :label="t('admin.official_output_price')">
-                    <el-input v-model="newModel.official_output_price" type="number" />
-                  </el-form-item>
+
+              <div class="panel p-5">
+                <div class="section-header">
+                  <div>
+                    <p class="section-kicker mb-1">{{ t('admin.manage_models') }}</p>
+                    <h3 class="text-lg font-semibold text-secondary-900">{{ t('admin.bulk_import_models') }}</h3>
+                    <p class="muted-subtitle">{{ t('admin.bulk_import_hint') }}</p>
+                  </div>
+                  <el-tag effect="plain">{{ t('admin.bulk_import_format') }}</el-tag>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <el-form-item :label="t('admin.is_featured')">
-                    <el-switch v-model="newModel.is_featured" />
-                  </el-form-item>
-                  <el-form-item :label="t('admin.rank_hint')">
-                    <el-input v-model="newModel.rank_hint" type="number" />
-                  </el-form-item>
+                <el-input
+                  v-model="bulkText"
+                  type="textarea"
+                  :rows="6"
+                  :placeholder="t('admin.bulk_import_placeholder')"
+                />
+                <div class="flex flex-wrap gap-2 justify-end">
+                  <el-button @click="bulkText = ''">{{ t('common.cancel') }}</el-button>
+                  <el-button type="primary" :loading="bulkImporting" @click="bulkImportModels">
+                    {{ t('admin.import_now') }}
+                  </el-button>
                 </div>
-                <el-alert type="info" :closable="false" class="mb-2">{{ t('admin.featured_hint') }}</el-alert>
-                <div class="flex gap-2">
-                  <el-button type="primary" :loading="modelSaving" :disabled="!newModel.name" @click="createModel">{{ t('admin.add') }}</el-button>
-                  <el-button @click="resetNewModel">{{ t('common.cancel') }}</el-button>
-                </div>
-              </el-form>
+              </div>
             </div>
             
             <div class="panel p-5 lg:col-span-2">
-              <div class="flex items-center justify-between mb-4">
+              <div class="section-header">
                 <div>
                   <p class="section-kicker mb-1">{{ t('admin.manage_models') }}</p>
                   <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.all_standard_models') }}</h3>
                 </div>
-                <el-tag effect="plain">{{ t('admin.rank_hint') }}</el-tag>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <el-tag effect="plain">{{ t('admin.rank_hint') }}</el-tag>
+                  <el-tag type="info" effect="plain">{{ t('admin.selected_count', { count: selectedCount }) }}</el-tag>
+                  <el-button
+                    type="danger"
+                    plain
+                    :disabled="!selectedCount"
+                    :loading="bulkDeleteLoading"
+                    @click="deleteSelectedModels"
+                  >
+                    {{ t('admin.delete_selected') }}
+                  </el-button>
+                </div>
               </div>
-              <el-table :data="models" height="420" v-loading="modelListLoading" class="rounded-xl overflow-hidden">
+              <el-table
+                :data="models"
+                height="420"
+                v-loading="modelListLoading"
+                class="rounded-xl overflow-hidden"
+                @selection-change="selectionChanged"
+                :row-key="(row: Model) => row.id"
+              >
+                <el-table-column type="selection" width="50" />
                 <el-table-column prop="name" :label="t('admin.name')" min-width="140" />
                 <el-table-column prop="vendor" :label="t('admin.vendor')" min-width="120" />
                 <el-table-column :label="t('home.official_price')" min-width="180">

@@ -201,24 +201,45 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-4 py-8">
-    <el-card>
-      <template #header>
-        <div class="flex justify-between items-center">
-          <span class="text-xl font-bold">{{ t('submit.title') }}</span>
-          <el-button link type="primary" @click="addRow">{{ t('submit.add_row') }}</el-button>
+  <div class="page-shell">
+    <div class="page-hero p-6 md:p-8">
+      <div class="section-header">
+        <div>
+          <p class="section-kicker mb-1">{{ t('submit.title') }}</p>
+          <h1 class="text-3xl font-bold text-secondary-900">{{ t('submit.provider_section') }}</h1>
+          <p class="muted-subtitle">{{ t('home.subtitle') }}</p>
         </div>
-      </template>
+        <div class="action-row">
+          <el-button type="primary" plain @click="addRow">
+            {{ t('submit.add_row') }}
+          </el-button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-3 text-sm text-secondary-700">
+        <span class="px-3 py-1 rounded-full bg-white/70 border border-primary-100 shadow-sm">
+          {{ providers.length }} {{ t('submit.use_existing_provider') }}
+        </span>
+        <span class="px-3 py-1 rounded-full bg-white/70 border border-primary-100 shadow-sm">
+          {{ priceRows.length }} {{ t('submit.row_title') }}
+        </span>
+      </div>
+    </div>
 
-      <el-form label-position="top">
+    <div class="card-muted p-6 space-y-8 bg-white/90">
+      <el-form label-position="top" class="space-y-8">
         <!-- Provider Section -->
-        <div class="mb-6">
-          <h3 class="text-lg font-semibold mb-4 border-b pb-2">{{ t('submit.provider_section') }}</h3>
-
-          <el-radio-group v-model="providerMode" class="mb-4">
-            <el-radio value="existing">{{ t('submit.use_existing_provider') }}</el-radio>
-            <el-radio value="new">{{ t('submit.create_new_provider') }}</el-radio>
-          </el-radio-group>
+        <div class="space-y-4">
+          <div class="section-header">
+            <div>
+              <p class="section-kicker mb-1">{{ t('submit.provider_section') }}</p>
+              <h3 class="text-xl font-semibold text-secondary-900">{{ t('submit.provider_section') }}</h3>
+              <p class="muted-subtitle">{{ t('submit.provider_name_placeholder') }}</p>
+            </div>
+            <el-radio-group v-model="providerMode" class="bg-gray-50 rounded-xl p-2 border border-gray-100">
+              <el-radio value="existing">{{ t('submit.use_existing_provider') }}</el-radio>
+              <el-radio value="new">{{ t('submit.create_new_provider') }}</el-radio>
+            </el-radio-group>
+          </div>
 
           <template v-if="providerMode === 'existing'">
             <el-form-item :label="t('submit.select_provider')">
@@ -228,62 +249,85 @@ onMounted(async () => {
             </el-form-item>
           </template>
           <template v-else>
-            <el-form-item :label="t('submit.provider_name')">
-              <el-input v-model="formProvider.provider_name" :placeholder="t('submit.provider_name_placeholder')" />
-            </el-form-item>
-            <el-form-item :label="t('submit.provider_website')">
-              <el-input v-model="formProvider.provider_website" placeholder="https://example.com" />
-            </el-form-item>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <el-form-item :label="t('submit.provider_name')">
+                <el-input v-model="formProvider.provider_name" :placeholder="t('submit.provider_name_placeholder')" />
+              </el-form-item>
+              <el-form-item :label="t('submit.provider_website')">
+                <el-input v-model="formProvider.provider_website" placeholder="https://example.com" />
+              </el-form-item>
+            </div>
 
-            <el-collapse class="mb-4">
+            <el-collapse class="mb-2">
               <el-collapse-item :title="t('submit.api_base_urls')">
-                <el-form-item label="OpenAI Base URL">
-                  <el-input v-model="formProvider.openai_base_url" placeholder="https://api.openai.com/v1" />
-                </el-form-item>
-                <el-form-item label="Gemini Base URL">
-                  <el-input v-model="formProvider.gemini_base_url" />
-                </el-form-item>
-                <el-form-item label="Claude Base URL">
-                  <el-input v-model="formProvider.claude_base_url" />
-                </el-form-item>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <el-form-item label="OpenAI Base URL">
+                    <el-input v-model="formProvider.openai_base_url" placeholder="https://api.openai.com/v1" />
+                  </el-form-item>
+                  <el-form-item label="Gemini Base URL">
+                    <el-input v-model="formProvider.gemini_base_url" />
+                  </el-form-item>
+                  <el-form-item label="Claude Base URL">
+                    <el-input v-model="formProvider.claude_base_url" />
+                  </el-form-item>
+                </div>
               </el-collapse-item>
             </el-collapse>
 
-            <el-form-item>
-              <el-switch v-model="formProvider.submit_provider_for_review" :active-text="t('submit.submit_provider_public')" />
-            </el-form-item>
+            <div class="card-muted p-4 space-y-3 bg-primary-50/40 border border-primary-100">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-secondary-800">{{ t('submit.submit_provider_public') }}</p>
+                <el-switch v-model="formProvider.submit_provider_for_review" />
+              </div>
 
-            <template v-if="formProvider.submit_provider_for_review">
-              <el-form-item :label="t('submit.provider_proof')">
-                <el-radio-group v-model="formProvider.provider_proof_type">
-                  <el-radio value="text">{{ t('submit.proof_text') }}</el-radio>
-                  <el-radio value="url">{{ t('submit.proof_url') }}</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item>
-                <el-input
-                  v-model="formProvider.provider_proof_content"
-                  :type="formProvider.provider_proof_type === 'text' ? 'textarea' : 'text'"
-                  :placeholder="formProvider.provider_proof_type === 'url' ? 'https://docs.example.com/pricing' : t('submit.proof_description')"
-                />
-              </el-form-item>
-            </template>
+              <template v-if="formProvider.submit_provider_for_review">
+                <el-form-item :label="t('submit.provider_proof')">
+                  <el-radio-group v-model="formProvider.provider_proof_type">
+                    <el-radio value="text">{{ t('submit.proof_text') }}</el-radio>
+                    <el-radio value="url">{{ t('submit.proof_url') }}</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item>
+                  <el-input
+                    v-model="formProvider.provider_proof_content"
+                    :type="formProvider.provider_proof_type === 'text' ? 'textarea' : 'text'"
+                    :placeholder="formProvider.provider_proof_type === 'url' ? 'https://docs.example.com/pricing' : t('submit.proof_description')"
+                  />
+                </el-form-item>
+              </template>
+            </div>
           </template>
         </div>
 
         <!-- Model Price Rows -->
-        <div class="space-y-6">
+        <div class="space-y-4">
+          <div class="section-header">
+            <div>
+              <p class="section-kicker mb-1">{{ t('submit.row_title') }}</p>
+              <h3 class="text-xl font-semibold text-secondary-900">{{ t('submit.price_in') }} / {{ t('submit.price_out') }}</h3>
+              <p class="muted-subtitle">{{ t('submit.request_new_model') }}</p>
+            </div>
+            <el-button type="primary" plain @click="addRow">{{ t('submit.add_row') }}</el-button>
+          </div>
+
           <div
             v-for="(row, idx) in priceRows"
             :key="idx"
-            class="p-4 border rounded-lg bg-gray-50"
+            class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
           >
-            <div class="flex justify-between items-center mb-3">
-              <h4 class="font-semibold">{{ t('submit.row_title') }} #{{ idx + 1 }}</h4>
-              <el-button link type="danger" @click="removeRow(idx)" :disabled="priceRows.length === 1">{{ t('submit.remove_row') }}</el-button>
+            <div class="section-header">
+              <h4 class="text-lg font-semibold text-secondary-900">{{ t('submit.row_title') }} #{{ idx + 1 }}</h4>
+              <el-button
+                link
+                type="danger"
+                @click="removeRow(idx)"
+                :disabled="priceRows.length === 1"
+              >
+                {{ t('submit.remove_row') }}
+              </el-button>
             </div>
 
-            <el-radio-group v-model="row.mode" class="mb-3">
+            <el-radio-group v-model="row.mode" class="bg-gray-50 rounded-xl p-2 border border-gray-100">
               <el-radio value="existing">{{ t('submit.use_existing_model') }}</el-radio>
               <el-radio value="new">{{ t('submit.request_new_model') }}</el-radio>
             </el-radio-group>
@@ -347,11 +391,11 @@ onMounted(async () => {
           </div>
         </div>
 
-        <el-form-item class="mt-6">
-          <el-button type="primary" :loading="loading" @click="submit">{{ t('submit.submit_btn') }}</el-button>
+        <div class="action-row pt-4 border-t border-dashed border-gray-200">
           <el-button @click="router.back()">{{ t('submit.cancel_btn') }}</el-button>
-        </el-form-item>
+          <el-button type="primary" :loading="loading" @click="submit">{{ t('submit.submit_btn') }}</el-button>
+        </div>
       </el-form>
-    </el-card>
+    </div>
   </div>
 </template>

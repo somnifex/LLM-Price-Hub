@@ -35,9 +35,9 @@ const filteredMenuItems = computed(() => {
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <p class="section-kicker text-secondary-500 mb-2">{{ t('admin.admin_panel') }}</p>
-            <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-secondary-900">{{ t('admin.admin_panel') }}</h1>
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight mb-3 text-secondary-900">{{ t('admin.control_center') }}</h1>
             <p class="text-sm md:text-base text-secondary-600">
-              {{ t('admin.settings') }} · {{ t('admin.user_management') }} · {{ t('admin.pending_prices') }}
+              {{ t('admin.control_center_subtitle') }}
             </p>
           </div>
           <div class="flex flex-col md:items-end gap-3">
@@ -47,8 +47,9 @@ const filteredMenuItems = computed(() => {
               <span class="text-secondary-800">{{ authStore.user?.role || 'admin' }}</span>
             </div>
             <div class="flex gap-2 text-xs text-secondary-500">
+              <span class="px-3 py-1 rounded-full bg-white/80 border border-primary-100">{{ t('admin.content_moderation') }}</span>
+              <span class="px-3 py-1 rounded-full bg-white/80 border border-primary-100">{{ t('admin.pending_prices') }}</span>
               <span class="px-3 py-1 rounded-full bg-white/80 border border-primary-100">{{ t('admin.settings') }}</span>
-              <span class="px-3 py-1 rounded-full bg-white/80 border border-primary-100">{{ t('admin.user_management') }}</span>
             </div>
           </div>
         </div>

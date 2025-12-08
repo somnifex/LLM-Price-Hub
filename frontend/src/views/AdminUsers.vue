@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
+import { computed } from 'vue'
 
 const { t } = useI18n()
 const users = ref([])
@@ -13,6 +14,8 @@ const reviewDialogVisible = ref(false)
 const selectedUser = ref<any>(null)
 const userReviews = ref<any[]>([])
 const reviewsLoading = ref(false)
+const activeCount = computed(() => users.value.filter((u: any) => u.is_active).length)
+const suspendedCount = computed(() => users.value.filter((u: any) => !u.is_active).length)
 
 const fetchUsers = async () => {
   loading.value = true
@@ -139,15 +142,20 @@ onMounted(fetchUsers)
 
 <template>
   <div class="panel p-6 space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="section-header">
       <div>
         <p class="section-kicker mb-1">{{ t('admin.user_management') }}</p>
-        <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.user_management') }}</h3>
-        <p class="muted-subtitle">{{ t('admin.role') }}</p>
+        <h3 class="text-xl font-semibold text-secondary-900">{{ t('admin.user_overview') }}</h3>
+        <p class="muted-subtitle">{{ t('admin.user_actions_hint') }}</p>
       </div>
-      <el-tag type="info" effect="plain">{{ t('admin.user_management') }}</el-tag>
+      <div class="action-row">
+        <el-tag type="success" effect="plain">{{ t('admin.status_active') }}: {{ activeCount }}</el-tag>
+        <el-tag type="warning" effect="plain">{{ t('admin.status_suspended') }}: {{ suspendedCount }}</el-tag>
+        <el-tag type="info" effect="plain">ID max: {{ Math.max(...users.map((u: any) => u.id || 0), 0) }}</el-tag>
+      </div>
     </div>
-    <el-table :data="users" v-loading="loading" class="rounded-xl overflow-hidden">
+
+    <el-table :data="users" v-loading="loading" class="rounded-2xl overflow-hidden border border-gray-100">
       <el-table-column prop="id" :label="t('admin.id')" width="80" />
       <el-table-column prop="email" :label="t('admin.email')" />
       <el-table-column prop="role" :label="t('admin.role')" width="160">
@@ -278,11 +286,11 @@ onMounted(fetchUsers)
 
 <style scoped>
 .reviews-dialog :deep(.el-dialog) {
-  background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08), transparent 25%),
-    radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.08), transparent 22%),
+  background: radial-gradient(circle at 10% 20%, rgba(5, 150, 105, 0.12), transparent 24%),
+    radial-gradient(circle at 80% 0%, rgba(100, 116, 139, 0.08), transparent 20%),
     #f8fafc;
   border-radius: 18px;
-  border: 1px solid rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(5, 150, 105, 0.18);
   max-width: 1180px;
   width: 90vw;
 }
@@ -290,12 +298,12 @@ onMounted(fetchUsers)
 .reviews-dialog :deep(.el-dialog__header) {
   margin-right: 0;
   padding: 16px 20px 0 20px;
-  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+  border-bottom: 1px solid rgba(5, 150, 105, 0.1);
 }
 
 .reviews-dialog :deep(.el-dialog__body) {
   padding: 12px 20px 20px 20px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(248, 250, 252, 0.96));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 252, 0.96));
 }
 
 .reviews-hero {
@@ -305,8 +313,8 @@ onMounted(fetchUsers)
   gap: 12px;
   padding: 16px;
   border-radius: 16px;
-  background: linear-gradient(120deg, rgba(99, 102, 241, 0.12), rgba(56, 189, 248, 0.12));
-  border: 1px solid rgba(99, 102, 241, 0.16);
+  background: linear-gradient(120deg, rgba(5, 150, 105, 0.12), rgba(100, 116, 139, 0.12));
+  border: 1px solid rgba(5, 150, 105, 0.18);
 }
 
 .reviews-dialog :deep(.el-table__header-wrapper) {

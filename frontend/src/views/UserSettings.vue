@@ -583,15 +583,15 @@ onMounted(async () => {
       <div class="absolute inset-0" style="background-image: radial-gradient(rgba(15,23,42,0.08) 1px, transparent 1px); background-size: 18px 18px;"></div>
     </div>
 
-    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div class="panel overflow-hidden border border-primary-100 bg-gradient-to-r from-white via-primary-50 to-secondary-50 text-secondary-900 shadow-[0_24px_80px_-40px_rgba(15,23,42,0.45)]">
+    <div class="relative page-shell">
+      <div class="page-hero text-secondary-900">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6">
           <div>
             <p class="section-kicker text-secondary-500 mb-2">{{ t('keys.user_settings') }}</p>
             <h1 class="text-3xl font-bold text-secondary-900">{{ authStore.user?.email || t('keys.user_settings') }}</h1>
             <p class="text-sm text-secondary-600">{{ t('keys.security_tab') }} / {{ t('keys.api_keys_tab') }} / {{ t('keys.channels_tab') }}</p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="action-row">
             <el-tag :type="totpEnabled ? 'success' : 'info'" effect="light">
               {{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}
             </el-tag>
@@ -602,7 +602,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div class="panel p-3">
+      <div class="card-muted p-3 bg-white/90">
         <el-tabs v-model="activeTab" type="card">
           <!-- General Tab -->
           <el-tab-pane :label="t('settings.general_tab')" name="general">
@@ -651,7 +651,7 @@ onMounted(async () => {
                   </el-select>
                 </div>
 
-                <div class="pt-2">
+                <div class="action-row pt-2">
                   <el-button type="primary" :loading="settingsLoading" @click="saveGeneralSettings">
                     {{ t('settings.save') }}
                   </el-button>
@@ -723,7 +723,7 @@ onMounted(async () => {
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
               <div class="panel p-5 space-y-4">
-                <div class="flex items-center justify-between">
+                <div class="section-header">
                   <div>
                     <p class="section-kicker mb-1">{{ t('account.password_heading') }}</p>
                     <h3 class="text-xl font-semibold text-secondary-900">{{ t('account.password_heading') }}</h3>
@@ -751,14 +751,16 @@ onMounted(async () => {
                       <el-input v-model="passwordForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
                     </el-form-item>
                   </div>
-                  <el-button type="primary" :loading="passwordSaving" @click="updatePassword">
-                    {{ t('settings.save') }}
-                  </el-button>
+                  <div class="action-row pt-1">
+                    <el-button type="primary" :loading="passwordSaving" @click="updatePassword">
+                      {{ t('settings.save') }}
+                    </el-button>
+                  </div>
                 </el-form>
               </div>
 
               <div class="panel p-5 space-y-4">
-                <div class="flex items-center justify-between">
+                <div class="section-header">
                   <div>
                     <p class="section-kicker mb-1">{{ t('account.email_heading') }}</p>
                     <h3 class="text-xl font-semibold text-secondary-900">{{ t('account.email_heading') }}</h3>
@@ -783,7 +785,7 @@ onMounted(async () => {
                       <el-input v-model="emailForm.totpCode" maxlength="10" :placeholder="t('account.totp_optional')" />
                     </el-form-item>
                   </div>
-                  <div class="flex items-center gap-3">
+                  <div class="action-row">
                     <el-button type="primary" :loading="emailSaving" @click="updateEmail">
                       {{ t('account.update_email') }}
                     </el-button>
@@ -797,7 +799,7 @@ onMounted(async () => {
           <!-- API Keys Tab -->
           <el-tab-pane :label="t('keys.api_keys_tab')" name="api_keys">
             <div class="panel p-5 space-y-4">
-              <div class="flex justify-between items-center">
+              <div class="section-header">
                 <div>
                   <p class="section-kicker mb-1">{{ t('keys.api_keys_tab') }}</p>
                   <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.my_api_keys') }}</h3>
@@ -844,7 +846,7 @@ onMounted(async () => {
           <!-- Channels Tab -->
           <el-tab-pane :label="t('keys.channels_tab')" name="channels">
             <div class="panel p-5 space-y-4">
-              <div class="flex justify-between items-center">
+              <div class="section-header">
                 <div>
                   <p class="section-kicker mb-1">{{ t('keys.channels_tab') }}</p>
                   <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.my_providers') }}</h3>
@@ -1099,5 +1101,24 @@ code {
   padding: 2px 6px;
   border-radius: 3px;
   font-family: monospace;
+}
+
+:deep(.el-dialog) {
+  background: radial-gradient(circle at 12% 18%, rgba(5, 150, 105, 0.08), transparent 22%),
+    radial-gradient(circle at 82% 0%, rgba(100, 116, 139, 0.08), transparent 20%),
+    #f8fafc;
+  border: 1px solid rgba(5, 150, 105, 0.16);
+  box-shadow: var(--brand-shadow);
+}
+
+:deep(.el-dialog__header) {
+  margin-right: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(5, 150, 105, 0.12);
+}
+
+:deep(.el-dialog__footer) {
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+  padding-top: 12px;
 }
 </style>
