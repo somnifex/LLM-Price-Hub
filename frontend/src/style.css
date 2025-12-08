@@ -76,4 +76,12 @@
     border-radius: 18px;
     overflow: hidden;
   }
+
+  /* Make Element Plus table cells wrap long texts to support long translations */
+  :global(.el-table .cell),
+  :global(.el-table__cell) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }

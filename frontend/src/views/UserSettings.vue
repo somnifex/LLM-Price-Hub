@@ -824,7 +824,11 @@ onMounted(async () => {
               </div>
               
               <el-table :data="apiKeys" v-loading="keysLoading" stripe class="rounded-xl overflow-hidden">
-                <el-table-column prop="provider_name" :label="t('keys.provider')" />
+                <el-table-column :label="t('keys.provider')">
+                  <template #default="{ row }">
+                    <div class="whitespace-normal break-words">{{ row.provider_name || '-' }}</div>
+                  </template>
+                </el-table-column>
                 <el-table-column :label="t('keys.api_key')" min-width="250">
                   <template #default="{ row }">
                     <div class="flex items-center gap-2">
@@ -871,8 +875,16 @@ onMounted(async () => {
               </div>
               
               <el-table :data="userProviders" v-loading="providersLoading" stripe class="rounded-xl overflow-hidden">
-                <el-table-column prop="name" :label="t('keys.provider_name')" />
-                <el-table-column prop="website" :label="t('keys.website')" />
+                <el-table-column :label="t('keys.provider_name')">
+                  <template #default="{ row }">
+                    <div class="whitespace-normal break-words">{{ row.name || '-' }}</div>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('keys.website')">
+                  <template #default="{ row }">
+                    <div class="whitespace-normal break-words">{{ row.website || '-' }}</div>
+                  </template>
+                </el-table-column>
                 <el-table-column :label="t('keys.status')">
                   <template #default="{ row }">
                     <el-tag :type="getStatusTag(row.status)" size="small">
@@ -885,17 +897,17 @@ onMounted(async () => {
                     <div class="space-y-1">
                       <div v-if="row.openai_base_url" class="flex items-center gap-1 text-xs">
                         <span class="text-gray-500">OpenAI:</span>
-                        <code class="flex-1 truncate">{{ row.openai_base_url }}</code>
+                        <code class="flex-1 break-words">{{ row.openai_base_url }}</code>
                         <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.openai_base_url, 'OpenAI URL')" />
                       </div>
                       <div v-if="row.gemini_base_url" class="flex items-center gap-1 text-xs">
                         <span class="text-gray-500">Gemini:</span>
-                        <code class="flex-1 truncate">{{ row.gemini_base_url }}</code>
+                        <code class="flex-1 break-words">{{ row.gemini_base_url }}</code>
                         <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.gemini_base_url, 'Gemini URL')" />
                       </div>
                       <div v-if="row.claude_base_url" class="flex items-center gap-1 text-xs">
                         <span class="text-gray-500">Claude:</span>
-                        <code class="flex-1 truncate">{{ row.claude_base_url }}</code>
+                        <code class="flex-1 break-words">{{ row.claude_base_url }}</code>
                         <el-button size="small" :icon="CopyDocument" circle @click="copyToClipboard(row.claude_base_url, 'Claude URL')" />
                       </div>
                     </div>

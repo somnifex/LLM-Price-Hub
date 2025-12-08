@@ -261,9 +261,17 @@ onMounted(fetchUsers)
 
         <div class="rounded-2xl border border-primary-100 bg-white/90 shadow-[0_14px_50px_-24px_rgba(15,23,42,0.35)] overflow-hidden">
           <el-table :data="userReviews" v-loading="reviewsLoading" size="small" height="60vh">
-            <el-table-column prop="provider_name" :label="t('admin.provider')" />
+            <el-table-column :label="t('admin.provider')">
+              <template #default="{ row }">
+                <div class="whitespace-normal break-words">{{ row.provider_name || '-' }}</div>
+              </template>
+            </el-table-column>
             <el-table-column prop="rating" :label="t('admin.rating')" width="120" />
-            <el-table-column prop="comment" :label="t('admin.comment')" />
+            <el-table-column :label="t('admin.comment')">
+              <template #default="{ row }">
+                <div class="whitespace-normal break-words">{{ row.comment || '-' }}</div>
+              </template>
+            </el-table-column>
             <el-table-column prop="created_at" :label="t('admin.created_at')" width="180">
               <template #default="{ row }">
                 {{ formatDate(row.created_at) }}

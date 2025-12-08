@@ -548,7 +548,7 @@
         "password_updated": "Mot de passe mis à jour",
         "email_heading": "Adresse email",
         "new_email": "Nouvelle email",
-        "request_email_code": "Envoyer le code à la nouvelle email",
+        "request_email_code": "Envoyer le code par email",
         "update_email": "Mettre à jour l'email",
         "email_updated": "Email mise à jour",
         "code_sent": "Code de vérification envoyé",

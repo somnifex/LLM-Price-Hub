@@ -394,9 +394,21 @@ onMounted(() => {
               <el-tag type="info" effect="plain">{{ t('admin.pending_prices') }}</el-tag>
             </div>
             <el-table v-else :data="pendingPrices" v-loading="pricesLoading" class="rounded-xl overflow-hidden">
-              <el-table-column prop="provider_name" :label="t('table.provider')" />
-              <el-table-column prop="model_name" :label="t('admin.standard_model')" />
-              <el-table-column prop="provider_model_name" :label="t('admin.provider_model_name')" />
+              <el-table-column :label="t('table.provider')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words">{{ row.provider_name || '-' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.standard_model')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words">{{ row.model_name || '-' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.provider_model_name')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words text-sm">{{ row.provider_model_name || '-' }}</div>
+                </template>
+              </el-table-column>
               <el-table-column :label="t('admin.price')">
                 <template #default="{ row }">
                   {{ row.input_price }} / {{ row.output_price }} {{ row.currency }}
@@ -437,7 +449,11 @@ onMounted(() => {
               <el-tag type="info" effect="plain">{{ t('admin.pending_providers') }}</el-tag>
             </div>
             <el-table v-else :data="pendingProviders" v-loading="providersLoading" class="rounded-xl overflow-hidden">
-              <el-table-column prop="name" :label="t('admin.name')" />
+              <el-table-column :label="t('admin.name')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words">{{ row.name || '-' }}</div>
+                </template>
+              </el-table-column>
               <el-table-column prop="website" :label="t('keys.website')">
                 <template #default="{ row }">
                   <a v-if="row.website" :href="row.website" target="_blank" class="text-primary-600 hover:text-primary-700">{{ row.website }}</a>
@@ -486,8 +502,16 @@ onMounted(() => {
               <el-tag type="info" effect="plain">{{ t('admin.pending_models') }}</el-tag>
             </div>
             <el-table v-else :data="pendingModels" v-loading="modelsLoading" class="rounded-xl overflow-hidden">
-              <el-table-column prop="requested_name" :label="t('admin.requested_name')" />
-              <el-table-column prop="vendor" :label="t('admin.vendor')" />
+              <el-table-column :label="t('admin.requested_name')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words">{{ row.requested_name || '-' }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.vendor')">
+                <template #default="{ row }">
+                  <div class="whitespace-normal break-words">{{ row.vendor || '-' }}</div>
+                </template>
+              </el-table-column>
               <el-table-column prop="requester_email" :label="t('admin.requester')" />
               <el-table-column prop="created_at" :label="t('admin.submitted')" />
               <el-table-column :label="t('common.actions')" width="180">
@@ -556,13 +580,13 @@ onMounted(() => {
                     <p class="section-kicker mb-1">{{ t('admin.manage_models') }}</p>
                     <h3 class="text-lg font-semibold text-secondary-900">{{ t('admin.bulk_import_models') }}</h3>
                     <p class="muted-subtitle">{{ t('admin.bulk_import_hint') }}</p>
+                    <el-tag effect="plain" class="whitespace-normal break-words" style="word-break: break-word; white-space: normal;">{{ t('admin.bulk_import_format') }}</el-tag>
                   </div>
-                  <el-tag effect="plain">{{ t('admin.bulk_import_format') }}</el-tag>
                 </div>
                 <el-input
                   v-model="bulkText"
                   type="textarea"
-                  :rows="6"
+                  :autosize="{ minRows: 6, maxRows: 20 }"
                   :placeholder="t('admin.bulk_import_placeholder')"
                 />
                 <div class="flex flex-wrap gap-2 justify-end">
@@ -603,11 +627,19 @@ onMounted(() => {
                 :row-key="(row: Model) => row.id"
               >
                 <el-table-column type="selection" width="50" />
-                <el-table-column prop="name" :label="t('admin.name')" min-width="140" />
-                <el-table-column prop="vendor" :label="t('admin.vendor')" min-width="120" />
+                <el-table-column :label="t('admin.name')" min-width="140">
+                  <template #default="{ row }">
+                    <div class="whitespace-normal break-words">{{ row.name }}</div>
+                  </template>
+                </el-table-column>
+                <el-table-column :label="t('admin.vendor')" min-width="120">
+                  <template #default="{ row }">
+                    <div class="whitespace-normal break-words">{{ row.vendor || '-' }}</div>
+                  </template>
+                </el-table-column>
                 <el-table-column :label="t('home.official_price')" min-width="180">
                   <template #default="{ row }">
-                    <div class="text-xs leading-5">
+                    <div class="text-xs leading-5 whitespace-normal break-words">
                       <div v-if="row.official_input_price !== null && row.official_input_price !== undefined">
                         {{ t('table.input') }}: {{ row.official_input_price }} {{ row.official_currency }}
                       </div>

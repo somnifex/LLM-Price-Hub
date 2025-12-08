@@ -540,7 +540,7 @@
         "password_updated": "密码已更新",
         "email_heading": "邮箱地址",
         "new_email": "新邮箱",
-        "request_email_code": "向新邮箱发送验证码",
+        "request_email_code": "发送邮箱验证码",
         "update_email": "更新邮箱",
         "email_updated": "邮箱已更新",
         "code_sent": "验证码已发送",
