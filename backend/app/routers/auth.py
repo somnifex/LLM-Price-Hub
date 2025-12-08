@@ -115,6 +115,19 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Auto-restore if suspension period passed
+    if user.suspended_until and user.suspended_until < datetime.utcnow():
+        user.is_active = True
+        user.suspended_until = None
+        user.suspension_reason = None
+        session.add(user)
+        session.commit()
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="USER_SUSPENDED"
+        )
+
     force_email_verification = _truthy(
         _get_setting(session, "force_email_verification", "false")
     )

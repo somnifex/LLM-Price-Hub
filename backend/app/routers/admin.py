@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
+from sqlalchemy import func
 from pydantic import BaseModel
 from typing import Optional
 from app.database import get_session
@@ -13,6 +14,7 @@ from app.models import (
     ProviderStatus,
     StandardModel,
     StandardModelRequest,
+    Review,
 )
 from app.auth import get_current_admin, get_current_super_admin
 
@@ -32,6 +34,49 @@ class StandardModelIn(BaseModel):
     official_output_price: Optional[float] = None
     is_featured: Optional[bool] = False
     rank_hint: Optional[int] = None
+
+
+class UserRoleUpdate(BaseModel):
+    role: str
+
+
+class UserSuspensionRequest(BaseModel):
+    reason: Optional[str] = None
+    suspended_until: Optional[datetime] = None
+
+
+class UserDeleteRequest(BaseModel):
+    purge_reviews: bool = True
+
+
+def _ensure_can_manage_user(target: User, actor: User):
+    """Admins can manage basic users; super admins can manage anyone."""
+    if actor.role == "super_admin":
+        return
+
+    if actor.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to manage users")
+
+    if target.role != "user":
+        raise HTTPException(
+            status_code=403,
+            detail="Admins can only manage standard users",
+        )
+
+
+def _recompute_provider_score(session: Session, provider_id: int):
+    """Recalculate provider average rating after moderation actions."""
+    rating_rows = session.exec(
+        select(Review.rating).where(Review.provider_id == provider_id)
+    ).all()
+    ratings = [
+        r[0] if isinstance(r, tuple) else r  # SQLAlchemy can return either shape
+        for r in rating_rows
+    ]
+    provider = session.get(Provider, provider_id)
+    if provider:
+        provider.avg_score = sum(ratings) / len(ratings) if ratings else 0.0
+        session.add(provider)
 
 
 @router.get("/pending")
@@ -365,14 +410,47 @@ async def get_users(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_admin),
 ):
-    users = session.exec(select(User)).all()
-    for u in users:
-        u.password_hash = "***"
-    return users
+    query = select(User)
+    if current_user.role == "admin":
+        query = query.where(User.role == "user")
 
+    users = session.exec(query).all()
 
-class UserRoleUpdate(BaseModel):
-    role: str
+    # Aggregate contributions for quick insight
+    price_counts = {
+        user_id: count
+        for user_id, count in session.exec(
+            select(ModelPrice.submitter_id, func.count(ModelPrice.id))
+            .where(ModelPrice.submitter_id.is_not(None))
+            .group_by(ModelPrice.submitter_id)
+        )
+    }
+    review_counts = {
+        user_id: count
+        for user_id, count in session.exec(
+            select(Review.user_id, func.count(Review.id))
+            .where(Review.user_id.is_not(None))
+            .group_by(Review.user_id)
+        )
+    }
+
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "suspended_until": u.suspended_until.isoformat()
+            if u.suspended_until
+            else None,
+            "suspension_reason": u.suspension_reason,
+            "email_verified": u.email_verified,
+            "created_at": u.created_at.isoformat(),
+            "price_count": price_counts.get(u.id, 0),
+            "review_count": review_counts.get(u.id, 0),
+        }
+        for u in users
+    ]
 
 
 @router.put("/users/{user_id}/role")
@@ -393,6 +471,157 @@ async def update_user_role(
     user.role = role
     session.commit()
     return {"message": "User role updated"}
+
+
+@router.post("/users/{user_id}/suspend")
+async def suspend_user(
+    user_id: int,
+    payload: UserSuspensionRequest,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_can_manage_user(user, current_user)
+
+    user.is_active = False
+    user.suspended_until = payload.suspended_until
+    user.suspension_reason = payload.reason or "Suspended by administrator"
+    session.add(user)
+    session.commit()
+    return {"message": "User suspended"}
+
+
+@router.post("/users/{user_id}/restore")
+async def restore_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_can_manage_user(user, current_user)
+
+    user.is_active = True
+    user.suspended_until = None
+    user.suspension_reason = None
+    session.add(user)
+    session.commit()
+    return {"message": "User restored"}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    payload: UserDeleteRequest = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    if payload is None:
+        payload = UserDeleteRequest()
+
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role == "super_admin":
+        # Prevent deleting last super admin
+        remaining_supers = session.exec(
+            select(User).where((User.role == "super_admin") & (User.id != user_id))
+        ).all()
+        if not remaining_supers:
+            raise HTTPException(
+                status_code=400, detail="At least one super admin is required"
+            )
+
+    _ensure_can_manage_user(user, current_user)
+
+    affected_provider_ids = set()
+    removed_reviews = 0
+    if payload.purge_reviews:
+        reviews = session.exec(select(Review).where(Review.user_id == user_id)).all()
+        for review in reviews:
+            if review.provider_id:
+                affected_provider_ids.add(review.provider_id)
+            session.delete(review)
+            removed_reviews += 1
+
+    session.delete(user)
+    session.commit()
+
+    for pid in affected_provider_ids:
+        _recompute_provider_score(session, pid)
+    session.commit()
+
+    return {
+        "message": "User deleted",
+        "removed_reviews": removed_reviews,
+    }
+
+
+@router.get("/users/{user_id}/reviews")
+async def list_user_reviews(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_can_manage_user(user, current_user)
+
+    statement = (
+        select(Review, Provider)
+        .join(Provider, Review.provider_id == Provider.id, isouter=True)
+        .where(Review.user_id == user_id)
+        .order_by(Review.created_at.desc())
+    )
+    results = session.exec(statement).all()
+
+    return [
+        {
+            "id": review.id,
+            "provider_id": review.provider_id,
+            "provider_name": provider.name if provider else None,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat(),
+        }
+        for review, provider in results
+    ]
+
+
+@router.delete("/users/{user_id}/reviews/{review_id}")
+async def delete_user_review(
+    user_id: int,
+    review_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    _ensure_can_manage_user(user, current_user)
+
+    review = session.get(Review, review_id)
+    if not review or review.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    provider_id = review.provider_id
+    session.delete(review)
+    session.commit()
+
+    if provider_id:
+        _recompute_provider_score(session, provider_id)
+        session.commit()
+
+    return {"message": "Review deleted"}
 
 
 # ============ System Settings ============

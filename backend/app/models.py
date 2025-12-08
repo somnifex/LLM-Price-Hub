@@ -12,10 +12,10 @@ class PriceStatus(str, Enum):
 
 
 class ProviderStatus(str, Enum):
-    private = "private"  # Only visible to owner
-    pending = "pending"  # Submitted for public review
-    approved = "approved"  # Publicly visible
-    rejected = "rejected"  # Review rejected
+    private = "private"
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
 
 
 class CurrencyRate(SQLModel, table=True):
@@ -57,16 +57,13 @@ class StandardModel(SQLModel, table=True):
     name: str = Field(max_length=50)
     vendor: Optional[str] = Field(default=None, max_length=50)
 
-    # Official reference pricing for the model (used for default highlights)
     official_currency: str = Field(default="USD", max_length=10)
     official_input_price: Optional[float] = Field(default=None)
     official_output_price: Optional[float] = Field(default=None)
 
-    # Home page ordering and featuring
     is_featured: bool = Field(default=False)
     rank_hint: Optional[int] = Field(default=None, index=True)
 
-    # Aggregated counters (optional future use)
     popularity_score: int = Field(default=0, index=True)
 
     prices: list["ModelPrice"] = Relationship(back_populates="standard_model")
@@ -96,6 +93,8 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     email_verified: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    suspended_until: Optional[datetime] = Field(default=None)
+    suspension_reason: Optional[str] = Field(default=None, max_length=255)
 
     prices: list["ModelPrice"] = Relationship(back_populates="submitter")
     private_providers: list["Provider"] = Relationship(back_populates="owner")
@@ -104,6 +103,7 @@ class User(SQLModel, table=True):
     model_requests: list["StandardModelRequest"] = Relationship(
         back_populates="requester"
     )
+    reviews: list["Review"] = Relationship(back_populates="user")
 
 
 class EmailVerificationToken(SQLModel, table=True):
@@ -145,7 +145,6 @@ class ModelPrice(SQLModel, table=True):
     standard_model_id: int = Field(foreign_key="standard_models.id")
     submitter_id: Optional[int] = Field(default=None, foreign_key="users.id")
 
-    # Provider's custom model name (may differ from standard name)
     provider_model_name: Optional[str] = Field(default=None, max_length=100)
     original_model_name: Optional[str] = Field(default=None, max_length=100)
 
@@ -153,18 +152,16 @@ class ModelPrice(SQLModel, table=True):
     input_price: float
     output_price: float
 
-    # Cache-hit pricing (additional fields requested)
     cache_hit_input_price: Optional[float] = Field(default=None)
     cache_hit_output_price: Optional[float] = Field(default=None)
 
-    # Flexible proof (image, text, or URL)
     proof_type: Optional[str] = Field(
         default=None, max_length=20
-    )  # 'image', 'text', 'url'
+    )
     proof_content: Optional[str] = Field(default=None, max_length=2000)
     proof_img_path: Optional[str] = Field(
         default=None, max_length=255
-    )  # Legacy, keep for compatibility
+    )
 
     status: PriceStatus = Field(default=PriceStatus.pending)
     verified_at: Optional[datetime] = Field(default=None)
@@ -179,30 +176,29 @@ class Review(SQLModel, table=True):
     __tablename__ = "reviews"
     id: Optional[int] = Field(default=None, primary_key=True)
     provider_id: int = Field(foreign_key="providers.id")
+    user_id: Optional[int] = Field(default=None, foreign_key="users.id")
     rating: int = Field(ge=1, le=5)
     comment: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     provider: Optional[Provider] = Relationship(back_populates="reviews")
+    user: Optional[User] = Relationship(back_populates="reviews")
 
 
 class UserSettings(SQLModel, table=True):
     __tablename__ = "user_settings"
     user_id: int = Field(primary_key=True, foreign_key="users.id")
     
-    # E2EE Settings
     e2ee_enabled: bool = Field(default=False)
     e2ee_salt: Optional[str] = Field(default=None, max_length=255)
     e2ee_verification: Optional[str] = Field(default=None, max_length=500)
 
-    # TOTP 2FA Settings
     totp_enabled: bool = Field(default=False)
     totp_secret: Optional[str] = Field(default=None, max_length=64)
-    totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)  # JSON list
+    totp_backup_codes: Optional[str] = Field(default=None, max_length=2000)
     totp_temp_secret: Optional[str] = Field(default=None, max_length=64)
 
-    # General Settings
-    preferred_currencies: Optional[str] = Field(default='["USD"]', max_length=1000)  # JSON list of codes
+    preferred_currencies: Optional[str] = Field(default='["USD"]', max_length=1000)
     default_currency: str = Field(default="USD", max_length=10)
 
     user: Optional[User] = Relationship(back_populates="settings")

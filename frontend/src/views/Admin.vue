@@ -8,12 +8,17 @@ const authStore = useAuthStore()
 
 const menuItems = [
     { key: 'content_moderation', path: '/admin/content', icon: 'Document' },
-    { key: 'user_management', path: '/admin/users', icon: 'User', role: 'super_admin' },
+    { key: 'user_management', path: '/admin/users', icon: 'User', role: 'admin' },
     { key: 'settings', path: '/admin/settings', icon: 'Setting', role: 'super_admin' },
 ]
 
 const filteredMenuItems = computed(() => {
-    return menuItems.filter(item => !item.role || (item.role === 'super_admin' && authStore.isSuperAdmin))
+    return menuItems.filter(item => {
+      if (!item.role) return true
+      if (item.role === 'admin') return authStore.isAdmin
+      if (item.role === 'super_admin') return authStore.isSuperAdmin
+      return false
+    })
 })
 </script>
 
