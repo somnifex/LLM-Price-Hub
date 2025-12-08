@@ -666,15 +666,13 @@ onMounted(async () => {
               <div class="panel p-5 space-y-4">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="section-kicker mb-1">{{ t('keys.totp_title') }}</p>
-                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.security_tab') }}</h3>
+                    <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.totp_title') }}</h3>
                     <p class="muted-subtitle">{{ t('keys.totp_description') }}</p>
                   </div>
                   <el-tag :type="totpEnabled ? 'success' : 'info'">{{ totpEnabled ? t('keys.enabled') : t('keys.disabled') }}</el-tag>
                 </div>
 
                 <div v-if="!totpEnabled" class="space-y-3">
-                  <p class="text-gray-600">{{ t('keys.totp_description') }}</p>
                   <el-button type="primary" :loading="totpLoading" @click="startTotpSetup">{{ t('keys.enable_totp') }}</el-button>
                 </div>
 
@@ -695,7 +693,6 @@ onMounted(async () => {
               <div class="panel p-5 space-y-4">
                 <div class="flex items-center justify-between">
                   <div>
-                    <p class="section-kicker mb-1">{{ t('keys.encryption_settings') }}</p>
                     <h3 class="text-xl font-semibold text-secondary-900">{{ t('keys.encryption_settings') }}</h3>
                     <p class="muted-subtitle">{{ t('keys.e2ee_description') }}</p>
                   </div>
@@ -704,7 +701,6 @@ onMounted(async () => {
                 </div>
                 
                 <div v-if="!e2eeEnabled" class="space-y-3">
-                  <p>{{ t('keys.e2ee_description') }}</p>
                   <el-button type="primary" @click="showE2EESetup = true">
                     {{ t('keys.enable_encryption') }}
                   </el-button>
