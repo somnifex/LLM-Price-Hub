@@ -118,7 +118,9 @@ const fetchProviders = async () => {
       api.get('/config/providers'),
       api.get('/user/providers').catch(() => ({ data: [] }))
     ])
-    providers.value = [...publicRes.data, ...userRes.data]
+    providers.value = Array.from(
+      new Map([...publicRes.data, ...userRes.data].map(item => [item.id, item])).values()
+    )
   } catch {
     // Silent fail
   }
