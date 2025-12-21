@@ -8,7 +8,7 @@ const { t } = useI18n();
 const { models, currencyOptions, value } = defineProps<{
   models: Array<{ id: number; name: string; vendor?: string }>;
   currencyOptions: Array<{ label: string; value: string }>;
-  value?: TModelPrice;
+  value?: TModelPrice | null;
 }>();
 
 const emits = defineEmits<{
@@ -46,7 +46,7 @@ const onSubmit = () => {
 
 watch(
   () => value,
-  (val: TModelPrice | undefined) => {
+  (val: TModelPrice | null | undefined) => {
     if (val) {
       priceForm.value = { ...val };
     } else {

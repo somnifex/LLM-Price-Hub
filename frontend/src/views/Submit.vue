@@ -49,6 +49,7 @@ const priceRows = ref<TModelPrice[]>([
     proof_content: "",
   },
 ]);
+const concurrentRow = ref<TModelPrice | null>(null);
 
 const modelPriceDialogRef = ref<{ showDialog: () => void } | null>(null);
 
@@ -71,6 +72,12 @@ const currencyOptions = computed(() => {
 });
 
 const addRow = () => {
+  concurrentRow.value = null;
+  modelPriceDialogRef.value?.showDialog();
+};
+
+const editRow = (modelPrice: TModelPrice) => {
+  concurrentRow.value = { ...modelPrice };
   modelPriceDialogRef.value?.showDialog();
 };
 
@@ -356,7 +363,9 @@ onMounted(async () => {
             ref="modelPriceDialogRef"
             :models="models"
             :currency-options="currencyOptions"
+            :value="concurrentRow"
             @add-price="priceRows.push($event)"
+            @update=""
           />
 
           <div
