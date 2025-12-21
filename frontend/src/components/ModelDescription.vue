@@ -41,8 +41,9 @@ const { modelPrice, idx } = defineProps<{
           :href="modelPrice.proof_content"
           type="primary"
           target="_blank"
-          >{{ modelPrice.proof_content }}</el-link
         >
+          {{ modelPrice.proof_content }}
+        </el-link>
       </template>
       <template v-else>
         {{ modelPrice.proof_content }}
