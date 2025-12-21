@@ -47,6 +47,7 @@ const priceRows = ref<TModelPrice[]>([
     currency: "USD",
     proof_type: "text",
     proof_content: "",
+    _id: Date.now(),
   },
 ]);
 const concurrentRow = ref<TModelPrice | null>(null);
@@ -79,6 +80,21 @@ const addRow = () => {
 const editRow = (modelPrice: TModelPrice) => {
   concurrentRow.value = { ...modelPrice };
   modelPriceDialogRef.value?.showDialog();
+};
+
+const handleEmit = (priceForm: TModelPrice) => {
+  if (concurrentRow.value) {
+    // Edit existing row
+    const idx = priceRows.value.findIndex(
+      (r) => r._id === concurrentRow.value!._id
+    );
+    if (idx !== -1) {
+      priceRows.value[idx] = priceForm;
+    }
+  } else {
+    // Add new row
+    priceRows.value.push(priceForm);
+  }
 };
 
 const removeRow = (idx: number) => {
@@ -364,8 +380,7 @@ onMounted(async () => {
             :models="models"
             :currency-options="currencyOptions"
             :value="concurrentRow"
-            @add-price="priceRows.push($event)"
-            @update=""
+            @submit="handleEmit"
           />
 
           <div

@@ -12,7 +12,7 @@ const { models, currencyOptions, value } = defineProps<{
 }>();
 
 const emits = defineEmits<{
-  (e: "add-price", priceForm: TModelPrice): void;
+  (e: "submit", priceForm: TModelPrice): void;
 }>();
 
 const dialogVisible = ref(false);
@@ -34,13 +34,14 @@ const emptyForm = (): TModelPrice => ({
   currency: "USD",
   proof_type: "text",
   proof_content: "",
+  _id: Date.now(),
 });
 
 const priceForm = ref<TModelPrice>(emptyForm());
 
 const onSubmit = () => {
   // Handle form submission logic here
-  emits("add-price", priceForm.value);
+  emits("submit", priceForm.value);
   dialogVisible.value = false;
 };
 
