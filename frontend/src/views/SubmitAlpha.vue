@@ -8,6 +8,7 @@ import { useSettingsStore } from "@/stores/settings";
 
 import { TModelPrice } from "@/dto/dto";
 import ModelPrice from "@/components/ModelPrice.vue";
+import ModelDescription from "@/components/ModelDescription.vue";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -33,23 +34,7 @@ const formProvider = ref({
 });
 
 // Model price rows
-const priceRows = ref<TModelPrice[]>([
-  {
-    mode: "existing",
-    standard_model_id: null,
-    new_model_name: "",
-    new_model_vendor: "",
-    provider_model_name: "",
-    price_in: 0,
-    price_out: 0,
-    cache_hit_input_price: null,
-    cache_hit_output_price: null,
-    currency: "USD",
-    proof_type: "text",
-    proof_content: "",
-    _id: Date.now(),
-  },
-]);
+const priceRows = ref<TModelPrice[]>([]);
 const concurrentRow = ref<TModelPrice | null>(null);
 
 const modelPriceDialogRef = ref<{ showDialog: () => void } | null>(null);
@@ -74,6 +59,7 @@ const currencyOptions = computed(() => {
 
 const addRow = () => {
   concurrentRow.value = null;
+  console.log(concurrentRow.value);
   modelPriceDialogRef.value?.showDialog();
 };
 
@@ -388,8 +374,19 @@ onMounted(async () => {
             :key="idx"
             class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
           >
-            <template>
-            </template>
+            <model-description :model-price="row" :idx="idx" />
+            <!-- <div class="flex justify-end">
+              <el-button type="text" size="small" @click="editRow(row)">{{
+                t("submit.edit_row")
+              }}</el-button>
+              <el-button
+                type="text"
+                size="small"
+                class="text-red-600"
+                @click="removeRow(idx)"
+                >{{ t("submit.remove_row") }}</el-button
+              >
+            </div> -->
           </div>
         </div>
 

@@ -5,7 +5,7 @@ import { TModelPrice } from "@/dto/dto";
 
 const { t } = useI18n();
 
-const { models, currencyOptions, value } = defineProps<{
+const props = defineProps<{
   models: Array<{ id: number; name: string; vendor?: string }>;
   currencyOptions: Array<{ label: string; value: string }>;
   value?: TModelPrice | null;
@@ -43,10 +43,11 @@ const onSubmit = () => {
   // Handle form submission logic here
   emits("submit", priceForm.value);
   dialogVisible.value = false;
+  priceForm.value = emptyForm();
 };
 
 watch(
-  () => value,
+  () => props.value,
   (val: TModelPrice | null | undefined) => {
     if (val) {
       priceForm.value = { ...val };
@@ -92,7 +93,7 @@ watch(
                     filterable
                   >
                     <el-option
-                      v-for="m in models"
+                      v-for="m in props.models"
                       :key="m.id"
                       :label="m.name + (m.vendor ? ' (' + m.vendor + ')' : '')"
                       :value="m.id"
@@ -165,7 +166,7 @@ watch(
             <el-form-item :label="t('submit.currency')">
               <el-select v-model="priceForm.currency" class="w-full" filterable>
                 <el-option
-                  v-for="opt in currencyOptions"
+                  v-for="opt in props.currencyOptions"
                   :key="opt.value"
                   :label="opt.label"
                   :value="opt.value"
