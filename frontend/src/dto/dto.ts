@@ -11,4 +11,5 @@ export type TModelPrice = {
   currency: string;
   proof_type: "text" | "url";
   proof_content: string;
+  _id: number;
 };
