@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineProps, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { TModelPrice } from "@/dto/dto";
 
 const { t } = useI18n();
 
@@ -15,22 +16,7 @@ const showDialog = () => {
 };
 defineExpose({ showDialog });
 
-type ModelPrice = {
-  mode: "existing" | "new";
-  standard_model_id: number | null;
-  new_model_name: string;
-  new_model_vendor: string;
-  provider_model_name: string;
-  price_in: number;
-  price_out: number;
-  cache_hit_input_price: number | null;
-  cache_hit_output_price: number | null;
-  currency: string;
-  proof_type: "text" | "url";
-  proof_content: string;
-};
-
-const priceForm = ref<ModelPrice>({
+const priceForm = ref<TModelPrice>({
   mode: "existing",
   standard_model_id: null,
   new_model_name: "",

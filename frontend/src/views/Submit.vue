@@ -6,6 +6,7 @@ import api from "@/api";
 import { useI18n } from "vue-i18n";
 import { useSettingsStore } from "@/stores/settings";
 
+import { TModelPrice } from "@/dto/dto";
 import ModelPrice from "@/components/ModelPrice.vue";
 
 const { t } = useI18n();
@@ -32,22 +33,7 @@ const formProvider = ref({
 });
 
 // Model price rows
-type PriceRow = {
-  mode: "existing" | "new";
-  standard_model_id: number | null;
-  new_model_name: string;
-  new_model_vendor: string;
-  provider_model_name: string;
-  price_in: number;
-  price_out: number;
-  cache_hit_input_price: number | null;
-  cache_hit_output_price: number | null;
-  currency: string;
-  proof_type: "text" | "url";
-  proof_content: string;
-};
-
-const priceRows = ref<PriceRow[]>([
+const priceRows = ref<TModelPrice[]>([
   {
     mode: "existing",
     standard_model_id: null,
@@ -63,6 +49,8 @@ const priceRows = ref<PriceRow[]>([
     proof_content: "",
   },
 ]);
+
+const modelPriceDialogRef = ref<{ showDialog: () => void } | null>(null);
 
 const currencyOptions = computed(() => {
   const list = settingsStore.currencies;
@@ -83,20 +71,21 @@ const currencyOptions = computed(() => {
 });
 
 const addRow = () => {
-  priceRows.value.push({
-    mode: "existing",
-    standard_model_id: null,
-    new_model_name: "",
-    new_model_vendor: "",
-    provider_model_name: "",
-    price_in: 0,
-    price_out: 0,
-    cache_hit_input_price: null,
-    cache_hit_output_price: null,
-    currency: settingsStore.userSettings.default_currency || "USD",
-    proof_type: "text",
-    proof_content: "",
-  });
+  // priceRows.value.push({
+  //   mode: "existing",
+  //   standard_model_id: null,
+  //   new_model_name: "",
+  //   new_model_vendor: "",
+  //   provider_model_name: "",
+  //   price_in: 0,
+  //   price_out: 0,
+  //   cache_hit_input_price: null,
+  //   cache_hit_output_price: null,
+  //   currency: settingsStore.userSettings.default_currency || "USD",
+  //   proof_type: "text",
+  //   proof_content: "",
+  // });
+  modelPriceDialogRef.value?.showDialog();
 };
 
 const removeRow = (idx: number) => {
@@ -211,7 +200,6 @@ onMounted(async () => {
   fetchProviders();
 });
 
-const modelPriceDialogRef = ref<{ showDialog: () => void } | null>(null);
 const addModelPrice = () => {
   modelPriceDialogRef.value?.showDialog();
 };
@@ -381,6 +369,13 @@ const addModelPrice = () => {
               t("submit.add_row")
             }}</el-button>
           </div>
+
+          <model-price
+            ref="modelPriceDialogRef"
+            :models="models"
+            :currency-options="currencyOptions"
+            @add-price="priceRows.push($event)"
+          />
 
           <div
             v-for="(row, idx) in priceRows"
