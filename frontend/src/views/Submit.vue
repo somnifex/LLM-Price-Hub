@@ -71,20 +71,6 @@ const currencyOptions = computed(() => {
 });
 
 const addRow = () => {
-  // priceRows.value.push({
-  //   mode: "existing",
-  //   standard_model_id: null,
-  //   new_model_name: "",
-  //   new_model_vendor: "",
-  //   provider_model_name: "",
-  //   price_in: 0,
-  //   price_out: 0,
-  //   cache_hit_input_price: null,
-  //   cache_hit_output_price: null,
-  //   currency: settingsStore.userSettings.default_currency || "USD",
-  //   proof_type: "text",
-  //   proof_content: "",
-  // });
   modelPriceDialogRef.value?.showDialog();
 };
 
@@ -199,10 +185,6 @@ onMounted(async () => {
   fetchModels();
   fetchProviders();
 });
-
-const addModelPrice = () => {
-  modelPriceDialogRef.value?.showDialog();
-};
 </script>
 
 <template>

@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { defineProps, ref } from "vue";
+import { defineProps, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { TModelPrice } from "@/dto/dto";
 
 const { t } = useI18n();
 
-const { models, currencyOptions } = defineProps<{
+const { models, currencyOptions, value } = defineProps<{
   models: Array<{ id: number; name: string; vendor?: string }>;
   currencyOptions: Array<{ label: string; value: string }>;
+  value?: TModelPrice;
+}>();
+
+const emits = defineEmits<{
+  (e: "add-price", priceForm: TModelPrice): void;
 }>();
 
 const dialogVisible = ref(false);
@@ -16,7 +21,7 @@ const showDialog = () => {
 };
 defineExpose({ showDialog });
 
-const priceForm = ref<TModelPrice>({
+const emptyForm = (): TModelPrice => ({
   mode: "existing",
   standard_model_id: null,
   new_model_name: "",
@@ -30,6 +35,26 @@ const priceForm = ref<TModelPrice>({
   proof_type: "text",
   proof_content: "",
 });
+
+const priceForm = ref<TModelPrice>(emptyForm());
+
+const onSubmit = () => {
+  // Handle form submission logic here
+  emits("add-price", priceForm.value);
+  dialogVisible.value = false;
+};
+
+watch(
+  () => value,
+  (val: TModelPrice | undefined) => {
+    if (val) {
+      priceForm.value = { ...val };
+    } else {
+      priceForm.value = emptyForm();
+    }
+  },
+  { immediate: true }
+);
 </script>
 <template>
   <div>
@@ -44,9 +69,7 @@ const priceForm = ref<TModelPrice>({
       </template>
       <el-form label-position="top" class="space-y-8">
         <div class="space-y-4">
-          <div
-            class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
-          >
+          <div class="p-5 space-y-4">
             <el-radio-group
               v-model="priceForm.mode"
               class="bg-gray-50 rounded-xl p-2 border border-gray-100"
@@ -169,6 +192,16 @@ const priceForm = ref<TModelPrice>({
           </div>
         </div>
       </el-form>
+      <template #footer>
+        <div class="flex justify-end space-x-4">
+          <el-button @click="dialogVisible = false">{{
+            t("common.cancel")
+          }}</el-button>
+          <el-button type="primary" @click="onSubmit">{{
+            t("common.confirm")
+          }}</el-button>
+        </div>
+      </template>
     </el-dialog>
   </div>
 </template>
