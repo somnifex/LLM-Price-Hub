@@ -8,6 +8,10 @@ const { modelPrice, idx } = defineProps<{
   modelPrice: TModelPrice;
   idx: number;
 }>();
+const emits = defineEmits<{
+  (e: "edit"): void;
+  (e: "remove"): void;
+}>();
 </script>
 
 <template>
@@ -16,6 +20,14 @@ const { modelPrice, idx } = defineProps<{
     :column="3"
     border
   >
+    <template #extra>
+      <el-button link type="primary" @click="emits('edit')">{{
+        t("common.edit")
+      }}</el-button>
+      <el-button link type="danger" @click="emits('remove')">{{
+        t("submit.remove_row")
+      }}</el-button>
+    </template>
     <el-descriptions-item :label="t('submit.new_model_name')">
       {{ modelPrice.new_model_name }}
     </el-descriptions-item>

@@ -12,7 +12,7 @@ const props = defineProps<{
 }>();
 
 const emits = defineEmits<{
-  (e: "submit", priceForm: TModelPrice): void;
+  (e: "save", priceForm: TModelPrice): void;
 }>();
 
 const dialogVisible = ref(false);
@@ -41,7 +41,7 @@ const priceForm = ref<TModelPrice>(emptyForm());
 
 const onSubmit = () => {
   // Handle form submission logic here
-  emits("submit", priceForm.value);
+  emits("save", priceForm.value);
   dialogVisible.value = false;
   priceForm.value = emptyForm();
 };
@@ -61,7 +61,7 @@ watch(
 <template>
   <div>
     <!-- ModelPrice component content goes here -->
-    <el-dialog v-model="dialogVisible">
+    <el-dialog v-model="dialogVisible" destroy-on-close>
       <template #header>
         <div class="section-header">
           <h4 class="text-lg font-semibold text-secondary-900">

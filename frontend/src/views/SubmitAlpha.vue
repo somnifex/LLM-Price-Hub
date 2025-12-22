@@ -366,7 +366,7 @@ onMounted(async () => {
             :models="models"
             :currency-options="currencyOptions"
             :value="concurrentRow"
-            @submit="handleEmit"
+            @save="handleEmit"
           />
 
           <div
@@ -374,7 +374,12 @@ onMounted(async () => {
             :key="idx"
             class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
           >
-            <model-description :model-price="row" :idx="idx" />
+            <model-description
+              :model-price="row"
+              :idx="idx"
+              @edit="editRow(row)"
+              @remove="removeRow(idx)"
+            />
           </div>
         </div>
 
