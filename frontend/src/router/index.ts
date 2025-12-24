@@ -11,8 +11,6 @@ import AdminContent from "@/views/AdminContent.vue";
 import UserSettings from "@/views/UserSettings.vue";
 import VerifyEmail from "@/views/VerifyEmail.vue";
 
-import SubmitAlpha from "@/views/SubmitAlpha.vue";
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -23,7 +21,7 @@ const router = createRouter({
     {
       path: "/submit",
       name: "Submit",
-      component: SubmitAlpha,
+      component: Submit,
       meta: { requiresAuth: true },
     },
     {
