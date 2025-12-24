@@ -435,7 +435,8 @@
         "failed": "Error en el envío",
         "add_row": "Agregar modelo",
         "row_title": "Precio de modelo",
-        "remove_row": "Eliminar"
+        "remove_row": "Eliminar",
+        "hint": "Aún no hay precios de modelos disponibles..."
     },
     "keys": {
         "title": "Gestión de claves API",

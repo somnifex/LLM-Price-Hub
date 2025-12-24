@@ -435,7 +435,8 @@
         "failed": "提交失败",
         "add_row": "增加模型价格",
         "row_title": "模型价格",
-        "remove_row": "移除"
+        "remove_row": "移除",
+        "hint": "还没有新的模型价格..."
     },
     "keys": {
         "title": "API 密钥管理",
