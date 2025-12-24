@@ -41,9 +41,8 @@ const priceForm = ref<TModelPrice>(emptyForm());
 
 const onSubmit = () => {
   // Handle form submission logic here
-  emits("save", priceForm.value);
+  emits("save", { ...priceForm.value });
   dialogVisible.value = false;
-  priceForm.value = emptyForm();
 };
 
 watch(
@@ -61,7 +60,11 @@ watch(
 <template>
   <div>
     <!-- ModelPrice component content goes here -->
-    <el-dialog v-model="dialogVisible" destroy-on-close>
+    <el-dialog
+      v-model="dialogVisible"
+      destroy-on-close
+      @closed="Object.assign(priceForm, emptyForm())"
+    >
       <template #header>
         <div class="section-header">
           <h4 class="text-lg font-semibold text-secondary-900">

@@ -377,6 +377,7 @@ onMounted(async () => {
             <model-description
               :model-price="row"
               :idx="idx"
+              :models="models"
               @edit="editRow(row)"
               @remove="removeRow(idx)"
             />

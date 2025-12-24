@@ -4,10 +4,17 @@ import { TModelPrice } from "@/dto/dto";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
-const { modelPrice, idx } = defineProps<{
+const { modelPrice, idx, models } = defineProps<{
   modelPrice: TModelPrice;
   idx: number;
+  models: Array<{ id: number; name: string; vendor?: string }>;
 }>();
+
+const modelDict = models.reduce((acc, model) => {
+  acc[model.id] = { ...model };
+  return acc;
+}, {} as Record<number, { id: number; name: string; vendor?: string }>);
+
 const emits = defineEmits<{
   (e: "edit"): void;
   (e: "remove"): void;
@@ -28,8 +35,17 @@ const emits = defineEmits<{
         t("submit.remove_row")
       }}</el-button>
     </template>
-    <el-descriptions-item :label="t('submit.new_model_name')">
-      {{ modelPrice.new_model_name }}
+    <el-descriptions-item :label="t('submit.standard_model')">
+      {{
+        modelPrice.mode === "existing"
+          ? modelPrice.standard_model_id
+            ? modelDict[modelPrice.standard_model_id].name +
+              (modelDict[modelPrice.standard_model_id].vendor
+                ? " (" + modelDict[modelPrice.standard_model_id].vendor + ")"
+                : "")
+            : ""
+          : modelPrice.new_model_name
+      }}
     </el-descriptions-item>
     <el-descriptions-item :label="t('table.input')">
       {{ modelPrice.price_in }} {{ modelPrice.currency }}
