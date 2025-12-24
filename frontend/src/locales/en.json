@@ -435,7 +435,8 @@
         "failed": "Submission failed",
         "add_row": "Add Model Price",
         "row_title": "Model Price",
-        "remove_row": "Remove"
+        "remove_row": "Remove",
+        "hint": "No model prices added yet..."
     },
     "keys": {
         "title": "API Keys Management",

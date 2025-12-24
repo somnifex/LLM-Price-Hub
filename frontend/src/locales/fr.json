@@ -435,7 +435,8 @@
         "failed": "Échec de la soumission",
         "add_row": "Ajouter un modèle",
         "row_title": "Prix du modèle",
-        "remove_row": "Supprimer"
+        "remove_row": "Supprimer",
+        "hint": "Aucun prix de modèle disponible pour le moment..."
     },
     "keys": {
         "title": "Gestion des clés API",

@@ -369,19 +369,28 @@ onMounted(async () => {
             @save="handleEmit"
           />
 
-          <div
-            v-for="(row, idx) in priceRows"
-            :key="idx"
-            class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
-          >
-            <model-description
-              :model-price="row"
-              :idx="idx"
-              :models="models"
-              @edit="editRow(row)"
-              @remove="removeRow(idx)"
-            />
-          </div>
+          <template v-if="priceRows.length === 0">
+            <div
+              class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
+            >
+              <p class="muted-subtitle">{{ t("submit.hint") }}</p>
+            </div>
+          </template>
+          <template v-else>
+            <div
+              v-for="(row, idx) in priceRows"
+              :key="idx"
+              class="card-muted p-5 space-y-4 border border-gray-100 bg-white/80"
+            >
+              <model-description
+                :model-price="row"
+                :idx="idx"
+                :models="models"
+                @edit="editRow(row)"
+                @remove="removeRow(idx)"
+              />
+            </div>
+          </template>
         </div>
 
         <div class="action-row pt-4 border-t border-dashed border-gray-200">
